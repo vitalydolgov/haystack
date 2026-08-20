@@ -3,23 +3,24 @@ import SwiftUI
 
 @main
 struct HaystackApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    let container: ModelContainer
+    let accountRepository: SwiftDataAccountRepository
 
+    init() {
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try Persistence.makeContainer()
+            self.container = container
+            self.accountRepository = SwiftDataAccountRepository(modelContainer: container)
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AccountsView()
+                .environment(\.accountRepository, accountRepository)
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(container)
     }
 }

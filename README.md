@@ -22,9 +22,9 @@ Account management and planning have to stay in sync because spending is categor
 
 The code follows DDD, with a clean split between layers:
 
-- **Domain** — aggregates, invariants, and value objects
-- **Application** — use cases that orchestrate the domain
-- **Infrastructure** — persistence (SwiftData) and other adapters
-- **Presentation** — SwiftUI, with UIKit only where it is the better fit
+- **Domain** — layers, aggregates, invariants, and value objects.
+- **Application** — use cases that orchestrate the domain.
+- **Infrastructure** — persistence and other adapters. Writes are isolated to a `ModelActor`.
+- **Presentation** — SwiftUI, with UIKit only where it is the better fit.
 
-The read path is native: presentation talks to persistence directly. The write path goes through the application layer.
+The read path is native: presentation talks to persistence directly. The write path goes through the application layer. Domain and application layers' code never depends on `MainActor`.
