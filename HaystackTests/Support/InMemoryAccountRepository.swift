@@ -2,21 +2,29 @@ import Foundation
 @testable import Haystack
 
 actor InMemoryAccountRepository: AccountRepository {
-    private var storage: [UUID: Account] = [:]
+    private var accounts: [UUID: Account] = [:]
+    private var tombstones: [UUID: DeletedAccount] = [:]
 
     func save(_ account: Account) {
-        storage[account.id] = account
+        guard tombstones[account.id] == nil else { return }
+        accounts[account.id] = account
     }
 
     func find(id: UUID) -> Account? {
-        storage[id]
+        accounts[id]
     }
 
-    func delete(_ account: Account) {
-        storage[account.id] = nil
+    func delete(_ account: DeletedAccount) {
+        guard tombstones[account.id] == nil else { return }
+        accounts[account.id] = nil
+        tombstones[account.id] = account
+    }
+
+    func deleted(id: UUID) -> DeletedAccount? {
+        tombstones[id]
     }
 
     func all() -> [Account] {
-        Array(storage.values)
+        Array(accounts.values)
     }
 }

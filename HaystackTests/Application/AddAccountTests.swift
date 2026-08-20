@@ -3,8 +3,6 @@ import Testing
 @testable import Haystack
 
 struct AddAccountTests {
-    // MARK: - Persist
-
     @Test func persistsTheAccount() async throws {
         let accounts = InMemoryAccountRepository()
         let added = try await AddAccount(accounts: accounts).execute(
@@ -19,25 +17,9 @@ struct AddAccountTests {
         #expect(stored.type == .cash)
         #expect(stored.notes == "Pocket cash")
         #expect(stored.balance == 42)
-        #expect(stored.isClosed == false)
     }
 
-    // MARK: - Errors
-
-    @Test func doesNotPersistWhenNameIsBlank() async {
-        let accounts = InMemoryAccountRepository()
-        await #expect(throws: AccountError.blankName) {
-            try await AddAccount(accounts: accounts).execute(
-                name: "   ",
-                type: .cash,
-                notes: "Pocket cash",
-                balance: 42
-            )
-        }
-        #expect(await accounts.all().isEmpty)
-    }
-
-    // MARK: - canExecute
+    // MARK: Validation
 
     @Test(arguments: [
         ("Wallet", AccountType.cash as AccountType?, Decimal?.some(0)),
@@ -63,5 +45,20 @@ struct AddAccountTests {
         balance: Decimal?
     ) {
         #expect(!AddAccount.canExecute(name: name, type: type, balance: balance))
+    }
+
+    // MARK: Errors
+
+    @Test func doesNotPersistWhenNameIsBlank() async {
+        let accounts = InMemoryAccountRepository()
+        await #expect(throws: AccountError.blankName) {
+            try await AddAccount(accounts: accounts).execute(
+                name: "   ",
+                type: .cash,
+                notes: "Pocket cash",
+                balance: 42
+            )
+        }
+        #expect(await accounts.all().isEmpty)
     }
 }

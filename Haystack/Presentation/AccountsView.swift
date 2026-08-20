@@ -3,7 +3,11 @@ import SwiftUI
 
 struct AccountsView: View {
     @Environment(\.accountRepository) private var accountRepository
-    @Query(sort: \AccountRecord.name) private var accounts: [AccountRecord]
+    @Query(
+        filter: #Predicate<AccountRecord> { $0.deletedAt == nil },
+        sort: \AccountRecord.name
+    )
+    private var accounts: [AccountRecord]
     @State private var pendingCloseID: UUID?
     @State private var isAddingAccount = false
     @State private var accountToEdit: AccountRecord?

@@ -9,6 +9,7 @@ final class AccountRecord {
     var notes: String
     var balance: Decimal
     var isClosed: Bool
+    var deletedAt: Date?
 
     init(
         id: UUID,
@@ -16,7 +17,8 @@ final class AccountRecord {
         type: AccountType,
         notes: String,
         balance: Decimal,
-        isClosed: Bool
+        isClosed: Bool,
+        deletedAt: Date?
     ) {
         self.id = id
         self.name = name
@@ -24,6 +26,7 @@ final class AccountRecord {
         self.notes = notes
         self.balance = balance
         self.isClosed = isClosed
+        self.deletedAt = deletedAt
     }
 
     convenience init(_ account: Account) {
@@ -33,7 +36,8 @@ final class AccountRecord {
             type: account.type,
             notes: account.notes,
             balance: account.balance,
-            isClosed: account.isClosed
+            isClosed: account.isClosed,
+            deletedAt: nil
         )
     }
 

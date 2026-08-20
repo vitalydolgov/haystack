@@ -28,7 +28,7 @@ struct EditAccountSheet: View {
     }
 
     private var canSave: Bool {
-        EditAccount.canExecute(name: name, workingBalance: parsedBalance, isClosed: isClosed)
+        EditAccount.canExecute(name: name, workingBalance: parsedBalance, closed: isClosed)
     }
 
     var body: some View {
@@ -76,7 +76,7 @@ struct EditAccountSheet: View {
     private func save() {
         guard let accountRepository else { return }
         let workingBalance = isClosed ? nil : parsedBalance
-        guard EditAccount.canExecute(name: name, workingBalance: workingBalance, isClosed: isClosed) else { return }
+        guard EditAccount.canExecute(name: name, workingBalance: workingBalance, closed: isClosed) else { return }
         Task {
             try await EditAccount(accounts: accountRepository).execute(
                 id: accountID,

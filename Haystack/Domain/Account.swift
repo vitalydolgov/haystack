@@ -58,8 +58,9 @@ struct Account: Identifiable, Equatable, Sendable {
         balance = newBalance
     }
 
-    func delete() throws {
+    func delete(at date: Date = .now) throws -> DeletedAccount {
         guard isClosed else { throw AccountError.open }
+        return DeletedAccount(id: id, deletedAt: date)
     }
 
     private static func normalizedName(_ name: String) throws -> String {
@@ -71,4 +72,9 @@ struct Account: Identifiable, Equatable, Sendable {
     static func == (lhs: Account, rhs: Account) -> Bool {
         lhs.id == rhs.id
     }
+}
+
+struct DeletedAccount: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let deletedAt: Date
 }

@@ -4,11 +4,10 @@ import Testing
 @testable import Haystack
 
 struct SwiftDataAccountRepositoryTests {
-    // MARK: - Save
+    // MARK: Save
 
     @Test func roundTripsAllFields() async throws {
-        let container = try await makeContainer()
-        let writer = SwiftDataAccountRepository(modelContainer: container)
+        let (container, writer) = try await makeStore()
         let account = try Account.make(
             name: "Wallet",
             type: .debitCard,
@@ -16,121 +15,137 @@ struct SwiftDataAccountRepositoryTests {
             balance: 42,
             isClosed: true
         )
-        let other = try Account.make(
-            name: "Checking",
-            type: .savings,
-            notes: "Bank",
-            balance: 10
-        )
         try await writer.save(account)
-        try await writer.save(other)
 
-        let reader = SwiftDataAccountRepository(modelContainer: container)
-        let stored = try #require(await reader.find(id: account.id))
+        let stored = try #require(await reader(container).find(id: account.id))
         #expect(stored.id == account.id)
         #expect(stored.name == "Wallet")
         #expect(stored.type == .debitCard)
         #expect(stored.notes == "Pocket cash")
         #expect(stored.balance == 42)
         #expect(stored.isClosed == true)
-
-        let otherStored = try #require(await reader.find(id: other.id))
-        #expect(otherStored.name == "Checking")
-        #expect(otherStored.type == .savings)
-        #expect(otherStored.notes == "Bank")
-        #expect(otherStored.balance == 10)
-        #expect(otherStored.isClosed == false)
     }
 
     @Test func updatesAnExistingAccountInPlace() async throws {
-        let container = try await makeContainer()
-        let writer = SwiftDataAccountRepository(modelContainer: container)
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
-        let other = try Account.make(name: "Checking", type: .savings, notes: "Bank", balance: 10)
+        let (container, writer) = try await makeStore()
+        var account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
         try await writer.save(account)
-        try await writer.save(other)
 
-        var updated = try #require(await writer.find(id: account.id))
-        try updated.rename("Cash")
-        updated.type = .cash
-        updated.notes = "On hand"
-        try updated.adjustBalance(to: 10)
-        try await writer.save(updated)
+        try account.rename("Cash")
+        account.type = .cash
+        account.notes = "On hand"
+        try account.adjustBalance(to: 10)
+        try await writer.save(account)
 
-        let reader = SwiftDataAccountRepository(modelContainer: container)
-        let stored = try #require(await reader.find(id: account.id))
+        let stored = try #require(await reader(container).find(id: account.id))
         #expect(stored.name == "Cash")
         #expect(stored.type == .cash)
         #expect(stored.notes == "On hand")
         #expect(stored.balance == 10)
-        #expect(stored.isClosed == false)
-
-        let otherStored = try #require(await reader.find(id: other.id))
-        #expect(otherStored.name == "Checking")
-        #expect(otherStored.type == .savings)
-        #expect(otherStored.notes == "Bank")
-        #expect(otherStored.balance == 10)
-        #expect(otherStored.isClosed == false)
     }
 
-    // MARK: - Find
+    @Test func storesAccountsSeparately() async throws {
+        let (_, accounts) = try await makeStore()
+        let wallet = try Account.make(name: "Wallet")
+        let checking = try Account.make(name: "Checking")
+        try await accounts.save(wallet)
+        try await accounts.save(checking)
+
+        #expect(await accounts.find(id: wallet.id)?.name == "Wallet")
+        #expect(await accounts.find(id: checking.id)?.name == "Checking")
+    }
+
+    @Test func doesNotResurrectADeletedAccount() async throws {
+        let (_, accounts) = try await makeStore()
+        let account = try Account.make(isClosed: true)
+        try await accounts.save(account)
+        let deleted = try account.delete(at: Date(timeIntervalSince1970: 1_700_000_000))
+        try await accounts.delete(deleted)
+        try await accounts.save(account)
+
+        #expect(await accounts.find(id: account.id) == nil)
+    }
+
+    // MARK: Find
+
+    @Test func findsALiveAccount() async throws {
+        let (container, writer) = try await makeStore()
+        let account = try Account.make()
+        try await writer.save(account)
+
+        #expect(await reader(container).find(id: account.id) != nil)
+    }
+
+    @Test func hidesADeletedAccount() async throws {
+        let (_, accounts) = try await makeStore()
+        let account = try Account.make(isClosed: true)
+        try await accounts.save(account)
+        let deleted = try account.delete(at: Date(timeIntervalSince1970: 1_700_000_000))
+        try await accounts.delete(deleted)
+
+        #expect(await accounts.find(id: account.id) == nil)
+    }
 
     @Test func returnsNilWhenMissing() async throws {
-        let container = try await makeContainer()
-        let writer = SwiftDataAccountRepository(modelContainer: container)
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash")
-        let other = try Account.make(name: "Checking", type: .savings, notes: "Bank")
-        try await writer.save(account)
-        try await writer.save(other)
-
-        let reader = SwiftDataAccountRepository(modelContainer: container)
-        #expect(await reader.find(id: UUID()) == nil)
-        #expect(await reader.find(id: account.id) != nil)
-        #expect(await reader.find(id: other.id) != nil)
+        let (_, accounts) = try await makeStore()
+        #expect(await accounts.find(id: UUID()) == nil)
     }
 
-    // MARK: - Delete
+    // MARK: Delete
 
-    @Test func removesTheAccount() async throws {
-        let container = try await makeContainer()
-        let writer = SwiftDataAccountRepository(modelContainer: container)
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash")
-        let other = try Account.make(name: "Checking", type: .savings, notes: "Bank")
-        try await writer.save(account)
-        try await writer.save(other)
+    @Test func persistsADeletedAccount() async throws {
+        let (container, accounts) = try await makeStore()
+        let account = try Account.make(isClosed: true)
+        try await accounts.save(account)
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let deleted = try account.delete(at: deletedAt)
+        try await accounts.delete(deleted)
 
-        try await writer.delete(account)
-
-        let reader = SwiftDataAccountRepository(modelContainer: container)
-        #expect(await reader.find(id: account.id) == nil)
-        let otherStored = try #require(await reader.find(id: other.id))
-        #expect(otherStored.name == "Checking")
-        #expect(otherStored.type == .savings)
-        #expect(otherStored.notes == "Bank")
-        #expect(otherStored.balance == 0)
-        #expect(otherStored.isClosed == false)
+        #expect(try await storedDeletedAt(id: account.id, in: container) == deletedAt)
     }
 
-    @Test func doesNotThrowWhenMissing() async throws {
-        let container = try await makeContainer()
-        let writer = SwiftDataAccountRepository(modelContainer: container)
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash")
-        try await writer.save(account)
+    @Test func doesNotOverwriteDeletedAt() async throws {
+        let (container, accounts) = try await makeStore()
+        let account = try Account.make(isClosed: true)
+        try await accounts.save(account)
+        let original = Date(timeIntervalSince1970: 1)
+        let deleted = try account.delete(at: original)
+        try await accounts.delete(deleted)
+        try await accounts.delete(DeletedAccount(id: account.id, deletedAt: Date(timeIntervalSince1970: 2)))
 
-        try await writer.delete(try Account.make(name: "Missing"))
-
-        let reader = SwiftDataAccountRepository(modelContainer: container)
-        let stored = try #require(await reader.find(id: account.id))
-        #expect(stored.name == "Wallet")
-        #expect(stored.type == .debitCard)
-        #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance == 0)
-        #expect(stored.isClosed == false)
+        #expect(try await storedDeletedAt(id: account.id, in: container) == original)
     }
 
-    private func makeContainer() async throws -> ModelContainer {
-        try await MainActor.run {
+    @Test func doesNothingWhenMissing() async throws {
+        let (container, accounts) = try await makeStore()
+        let id = UUID()
+        try await accounts.delete(DeletedAccount(id: id, deletedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+
+        #expect(try await storedDeletedAt(id: id, in: container) == nil)
+    }
+
+    // MARK: - Helpers
+
+    private func makeStore() async throws -> (ModelContainer, SwiftDataAccountRepository) {
+        let container = try await MainActor.run {
             try Persistence.makeContainer(inMemory: true)
+        }
+        return (container, SwiftDataAccountRepository(modelContainer: container))
+    }
+
+    private func reader(_ container: ModelContainer) -> SwiftDataAccountRepository {
+        SwiftDataAccountRepository(modelContainer: container)
+    }
+
+    private func storedDeletedAt(id: UUID, in container: ModelContainer) async throws -> Date? {
+        try await MainActor.run {
+            let context = ModelContext(container)
+            let accountID = id
+            var descriptor = FetchDescriptor<AccountRecord>(
+                predicate: #Predicate { $0.id == accountID }
+            )
+            descriptor.fetchLimit = 1
+            return try context.fetch(descriptor).first?.deletedAt
         }
     }
 }

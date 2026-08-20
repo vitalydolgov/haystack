@@ -13,6 +13,7 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
 
     func save(_ account: Account) throws {
         if let record = record(id: account.id) {
+            guard record.deletedAt == nil else { return }
             record.update(from: account)
         } else {
             modelContext.insert(AccountRecord(account))
@@ -21,19 +22,19 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
     }
 
     func find(id: UUID) -> Account? {
-        try? record(id: id)?.toAccount()
+        guard let record = record(id: id), record.deletedAt == nil else { return nil }
+        return try? record.toAccount()
     }
 
-    func delete(_ account: Account) throws {
-        guard let record = record(id: account.id) else { return }
-        modelContext.delete(record)
+    func delete(_ account: DeletedAccount) throws {
+        guard let record = record(id: account.id), record.deletedAt == nil else { return }
+        record.deletedAt = account.deletedAt
         try modelContext.save()
     }
 
     private func record(id: UUID) -> AccountRecord? {
-        let accountID = id
         var descriptor = FetchDescriptor<AccountRecord>(
-            predicate: #Predicate { $0.id == accountID }
+            predicate: #Predicate { $0.id == id }
         )
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first

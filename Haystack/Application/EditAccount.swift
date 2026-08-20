@@ -7,10 +7,10 @@ struct EditAccount {
         self.accounts = accounts
     }
 
-    static func canExecute(name: String, workingBalance: Decimal?, isClosed: Bool) -> Bool {
+    static func canExecute(name: String, workingBalance: Decimal?, closed: Bool) -> Bool {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return false }
-        return isClosed || workingBalance != nil
+        return closed || workingBalance != nil
     }
 
     func execute(id: UUID, name: String, notes: String, workingBalance: Decimal?) async throws {

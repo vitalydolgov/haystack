@@ -3,33 +3,30 @@ import Testing
 @testable import Haystack
 
 struct DeleteAccountTests {
-    // MARK: - Persist
-
-    @Test func removesAClosedAccount() async throws {
+    @Test func marksAClosedAccountDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
-        try await DeleteAccount(accounts: accounts).execute(id: account.id)
+        try await DeleteAccount(accounts: accounts).execute(id: account.id, at: deletedAt)
         #expect(await accounts.find(id: account.id) == nil)
+
+        let stored = try #require(await accounts.deleted(id: account.id))
+        #expect(stored.deletedAt == deletedAt)
     }
 
-    // MARK: - Errors
+    // MARK: Errors
 
     @Test func failsWhenOpen() async throws {
         let accounts = InMemoryAccountRepository()
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
+        let account = try Account.make()
         await accounts.save(account)
 
         await #expect(throws: AccountError.open) {
             try await DeleteAccount(accounts: accounts).execute(id: account.id)
         }
-        let stored = try #require(await accounts.find(id: account.id))
-        #expect(stored.name == "Wallet")
-        #expect(stored.type == .debitCard)
-        #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance == 42)
-        #expect(stored.isClosed == false)
+        #expect(await accounts.find(id: account.id) != nil)
     }
 
     @Test func failsWhenMissing() async {
@@ -37,5 +34,19 @@ struct DeleteAccountTests {
         await #expect(throws: AccountError.notFound) {
             try await DeleteAccount(accounts: accounts).execute(id: UUID())
         }
+    }
+
+    @Test func failsWhenAlreadyDeleted() async throws {
+        let accounts = InMemoryAccountRepository()
+        let account = try Account.make(isClosed: true)
+        await accounts.save(account)
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        try await DeleteAccount(accounts: accounts).execute(id: account.id, at: deletedAt)
+
+        await #expect(throws: AccountError.notFound) {
+            try await DeleteAccount(accounts: accounts).execute(id: account.id)
+        }
+        let stored = try #require(await accounts.deleted(id: account.id))
+        #expect(stored.deletedAt == deletedAt)
     }
 }

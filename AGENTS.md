@@ -26,6 +26,16 @@ Use `make` for all project operations. Do not invoke `xcodegen` or `xcodebuild` 
 
 After changing `project.yml`, run `make generate`. Simulator name comes from `.env` (`SIMULATOR`).
 
+## Testing
+
+Each test asserts only the behavior in its name. Do not snapshot every field after an operation unless that is the point of the test.
+
+**Domain.** Exercise types in memory. Cover identity and field invariants, then group remaining tests by operation. Inside each group, put the happy path first.
+
+**Application.** One suite per use case, against in-memory fakes. Put the happy path first and leave it unmarked, then `// MARK: Validation`, then `// MARK: Errors`.
+
+**Persistence.** Exercise the real store. Group tests by operation. Inside each group, put the happy path first. A round-trip of all fields is the one case that should snapshot every field.
+
 ## Comments
 
 Do not comment code.
@@ -34,3 +44,4 @@ Exceptions:
 
 - **Public interfaces**: document public types, methods, properties, and other API surface that callers outside the defining module need to understand.
 - **`TODO:` placeholders** for work deferred to a later phase. Prefer a `TODO` over generating the full implementation when the current phase does not need it.
+- **Tests**: `// MARK:` as described in Testing.

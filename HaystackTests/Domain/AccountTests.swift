@@ -3,7 +3,7 @@ import Testing
 @testable import Haystack
 
 struct AccountTests {
-    // MARK: - Equality
+    // MARK: Identity
 
     @Test func sameIDMeansEqual() throws {
         let id = UUID()
@@ -26,7 +26,7 @@ struct AccountTests {
         #expect(left != right)
     }
 
-    // MARK: - Name
+    // MARK: Name
 
     @Test func trimsNameOnInitAndRename() throws {
         var account = try Account.make(name: "  Wallet  ")
@@ -51,10 +51,39 @@ struct AccountTests {
         #expect(account.name == "Wallet")
     }
 
-    // MARK: - Close
+    // MARK: Closed
+
+    @Test func startsOpen() throws {
+        let account = try Account.make()
+        #expect(!account.isClosed)
+    }
+
+    // MARK: Balance
+
+    @Test func adjustsWhenOpen() throws {
+        var account = try Account.make()
+        try account.adjustBalance(to: 25)
+        #expect(account.balance == 25)
+    }
+
+    @Test func failsWhenClosed() throws {
+        var account = try Account.make(isClosed: true)
+        #expect(throws: AccountError.closed) {
+            try account.adjustBalance(to: 10)
+        }
+        #expect(account.balance == 0)
+    }
+
+    // MARK: Close
 
     @Test func closesWhenBalanceIsZero() throws {
         var account = try Account.make()
+        try account.close()
+        #expect(account.isClosed)
+    }
+
+    @Test func doesNotThrowWhenAlreadyClosed() throws {
+        var account = try Account.make(isClosed: true)
         try account.close()
         #expect(account.isClosed)
     }
@@ -68,13 +97,7 @@ struct AccountTests {
         #expect(account.balance == 10)
     }
 
-    @Test func doesNotThrowWhenAlreadyClosed() throws {
-        var account = try Account.make(isClosed: true)
-        try account.close()
-        #expect(account.isClosed)
-    }
-
-    // MARK: - Reopen
+    // MARK: Reopen
 
     @Test func reopensAClosedAccount() throws {
         var account = try Account.make(isClosed: true)
@@ -88,34 +111,14 @@ struct AccountTests {
         #expect(!account.isClosed)
     }
 
-    // MARK: - Balance
+    // MARK: Delete
 
-    @Test func adjustsWhenOpen() throws {
-        var account = try Account.make()
-        try account.adjustBalance(to: 25)
-        #expect(account.balance == 25)
-        #expect(!account.isClosed)
-    }
-
-    @Test func failsWhenClosed() throws {
-        var account = try Account.make(isClosed: true)
-        #expect(throws: AccountError.closed) {
-            try account.adjustBalance(to: 10)
-        }
-        #expect(account.balance == 0)
-        #expect(account.isClosed)
-    }
-
-    // MARK: - Delete
-
-    @Test func allowsDeleteWhenClosed() throws {
-        let account = try Account.make(type: .debitCard, notes: "Retired", isClosed: true)
-        try account.delete()
-        #expect(account.name == "Wallet")
-        #expect(account.type == .debitCard)
-        #expect(account.notes == "Retired")
-        #expect(account.balance == 0)
-        #expect(account.isClosed)
+    @Test func recordsDeletedAtWhenClosed() throws {
+        let account = try Account.make(isClosed: true)
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let deleted = try account.delete(at: deletedAt)
+        #expect(deleted.id == account.id)
+        #expect(deleted.deletedAt == deletedAt)
     }
 
     @Test func failsWhenOpen() throws {
@@ -123,6 +126,5 @@ struct AccountTests {
         #expect(throws: AccountError.open) {
             try account.delete()
         }
-        #expect(!account.isClosed)
     }
 }
