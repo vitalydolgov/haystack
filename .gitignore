@@ -1,0 +1,9 @@
+# OS
+.DS_Store
+.env
+
+# Xcode
+*.xcodeproj
+project.local.yml
+.derivedData/
+archive/

@@ -1,0 +1,47 @@
+name: Haystack
+include:
+  - path: project.local.yml
+options:
+  bundleIdPrefix: app.haystack
+  deploymentTarget:
+    iOS: "18.0"
+  defaultSourceDirectoryType: syncedFolder
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+targets:
+  Haystack:
+    type: application
+    platform: iOS
+    sources:
+      - Haystack
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.haystack
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_EMIT_LOC_STRINGS: YES
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: 1
+    scheme:
+      testTargets:
+        - HaystackTests
+  HaystackTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - HaystackTests
+    dependencies:
+      - target: Haystack
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.haystack.tests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
