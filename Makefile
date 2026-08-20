@@ -9,7 +9,7 @@ DERIVED_DATA := $(CURDIR)/.derivedData
 APP_PATH     := $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)-iphonesimulator/$(SCHEME).app
 ARCHIVE_PATH := $(CURDIR)/archive/Haystack.xcarchive
 
-.PHONY: generate build launch test archive clean
+.PHONY: generate build launch test archive clean purge
 
 generate:
 	xcodegen generate
@@ -47,6 +47,10 @@ archive: generate
 		-archivePath $(ARCHIVE_PATH) \
 		-derivedDataPath $(DERIVED_DATA) \
 		archive
+
+purge:
+	xcrun simctl bootstatus "$(SIMULATOR)" -b
+	xcrun simctl uninstall booted $(BUNDLE_ID) || true
 
 clean:
 	rm -rf $(PROJECT) $(DERIVED_DATA) archive

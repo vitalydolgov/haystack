@@ -20,6 +20,7 @@ Use `make` for all project operations. Do not invoke `xcodegen` or `xcodebuild` 
 | `make build` | Debug simulator build |
 | `make test` | Run tests on the simulator |
 | `make launch` | Build, install, and launch on the simulator |
+| `make purge` | Uninstalls the app from the simulator, dropping its data |
 | `make archive` | Release device archive |
 | `make clean` | Removes the generated project, derived data, and archive |
 
