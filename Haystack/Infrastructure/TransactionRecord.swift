@@ -53,6 +53,8 @@ final class TransactionRecord {
     }
 
     func update(from transaction: Transaction) {
+        accountID = transaction.accountID
+        type = transaction.type
         packedDate = Self.packedDate(from: transaction.date)
         amount = transaction.amount
         notes = transaction.notes

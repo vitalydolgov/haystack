@@ -82,6 +82,15 @@ struct Transaction: Identifiable, Equatable, Sendable {
     static func == (lhs: Transaction, rhs: Transaction) -> Bool {
         lhs.id == rhs.id
     }
+
+    static func date(from components: (year: Int, month: Int, day: Int)) -> Date {
+        var c = DateComponents()
+        c.calendar = Calendar(identifier: .gregorian)
+        c.year = components.year
+        c.month = components.month
+        c.day = components.day
+        return c.date!
+    }
 }
 
 struct DeletedTransaction: Identifiable, Equatable, Sendable {
