@@ -11,6 +11,13 @@ struct AddTransactionSheet: View {
     @State private var date = Date()
     @State private var notes = ""
     @State private var saveID: UUID?
+    @State private var accountName = ""
+    @State private var selectedAccountID: UUID
+
+    init(accountID: UUID) {
+        self.accountID = accountID
+        _selectedAccountID = State(initialValue: accountID)
+    }
 
     private var parsedAmount: Decimal? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -26,6 +33,7 @@ struct AddTransactionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                // TODO: labels for each field
                 // TODO: only positive
                 // TODO: never empty
                 TextField("Amount", text: $amountText)
@@ -36,8 +44,15 @@ struct AddTransactionSheet: View {
                 }
                 .pickerStyle(.segmented)
                 // TODO: payee
-                // TODO: account
-                // TODO: date
+                NavigationLink {
+                    // TODO: show as sheet
+                    AccountPicker(selectedID: $selectedAccountID)
+                } label: {
+                    Text(accountName.isEmpty ? "Account" : accountName)
+                }
+                DatePicker("Date", selection: $date, in: Date.distantPast...Date(), displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                // TODO: allow scheduling in the future
                 Section {
                     // TODO: memo
                 }
@@ -61,20 +76,26 @@ struct AddTransactionSheet: View {
                 guard saveID != nil else { return }
                 await save()
             }
+            .task(id: selectedAccountID) {
+                guard let accountRepository else { return }
+                if let account = await accountRepository.find(id: selectedAccountID) {
+                    accountName = account.name
+                }
+            }
         }
     }
 
     private var canSave: Bool {
-        AddTransaction.canExecute(accountID: accountID, amount: signedAmount, date: date)
+        AddTransaction.canExecute(accountID: selectedAccountID, amount: signedAmount, date: date)
     }
 
     private func save() async {
         guard let accountRepository, let transactionRepository else { return }
-        guard AddTransaction.canExecute(accountID: accountID, amount: signedAmount, date: date) else { return }
+        guard AddTransaction.canExecute(accountID: selectedAccountID, amount: signedAmount, date: date) else { return }
         do {
             let addTransaction = AddTransaction(accounts: accountRepository, transactions: transactionRepository)
             _ = try await addTransaction.execute(
-                accountID: accountID,
+                accountID: selectedAccountID,
                 date: date,
                 amount: signedAmount,
                 notes: notes
