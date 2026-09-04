@@ -17,11 +17,7 @@ struct TransactionsView: View {
             filter: #Predicate<TransactionRecord> {
                 $0.accountID == accountID && $0.deletedAt == nil
             },
-            sort: [
-                SortDescriptor(\.year, order: .reverse),
-                SortDescriptor(\.month, order: .reverse),
-                SortDescriptor(\.day, order: .reverse),
-            ]
+            sort: [SortDescriptor(\.packedDate, order: .reverse)]
         )
     }
 
@@ -86,15 +82,12 @@ struct TransactionsView: View {
                 Button("Add Transaction", systemImage: "plus") {
                     // TODO: add transaction sheet
                     let transaction = TransactionRecord(
-                        id: UUID(),
-                        accountID: account.id,
-                        type: .standard,
-                        year: Calendar.current.component(.year, from: Date()),
-                        month: Calendar.current.component(.month, from: Date()),
-                        day: Calendar.current.component(.day, from: Date()),
-                        amount: -100,
-                        notes: "Mock transaction",
-                        deletedAt: nil
+                        try! Transaction(
+                            accountID: account.id,
+                            date: Date(),
+                            amount: -100,
+                            notes: "Mock transaction"
+                        )
                     )
                     modelContext.insert(transaction)
                 }
@@ -111,13 +104,14 @@ struct TransactionsView: View {
     }
 
     private func dateText(_ transaction: TransactionRecord) -> String {
+        let date = transaction.unpackedDate
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)
-        components.year = transaction.year
-        components.month = transaction.month
-        components.day = transaction.day
-        guard let date = components.date else { return "" }
-        return date.formatted(date: .abbreviated, time: .omitted)
+        components.year = date.year
+        components.month = date.month
+        components.day = date.day
+        guard let value = components.date else { return "" }
+        return value.formatted(date: .abbreviated, time: .omitted)
     }
 }
 

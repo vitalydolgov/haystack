@@ -6,9 +6,7 @@ final class TransactionRecord {
     @Attribute(.unique) var id: UUID
     var accountID: UUID
     var type: TransactionType
-    var year: Int
-    var month: Int
-    var day: Int
+    var packedDate: Int
     var amount: Decimal
     var notes: String
     var deletedAt: Date?
@@ -17,9 +15,7 @@ final class TransactionRecord {
         id: UUID,
         accountID: UUID,
         type: TransactionType,
-        year: Int,
-        month: Int,
-        day: Int,
+        packedDate: Int,
         amount: Decimal,
         notes: String,
         deletedAt: Date?
@@ -27,9 +23,7 @@ final class TransactionRecord {
         self.id = id
         self.accountID = accountID
         self.type = type
-        self.year = year
-        self.month = month
-        self.day = day
+        self.packedDate = packedDate
         self.amount = amount
         self.notes = notes
         self.deletedAt = deletedAt
@@ -40,9 +34,7 @@ final class TransactionRecord {
             id: transaction.id,
             accountID: transaction.accountID,
             type: transaction.type,
-            year: transaction.date.year,
-            month: transaction.date.month,
-            day: transaction.date.day,
+            packedDate: Self.packedDate(from: transaction.date),
             amount: transaction.amount,
             notes: transaction.notes,
             deletedAt: nil
@@ -53,7 +45,7 @@ final class TransactionRecord {
         try Transaction(
             id: id,
             accountID: accountID,
-            date: (year: year, month: month, day: day),
+            date: unpackedDate,
             amount: amount,
             notes: notes,
             type: type
@@ -61,10 +53,16 @@ final class TransactionRecord {
     }
 
     func update(from transaction: Transaction) {
-        year = transaction.date.year
-        month = transaction.date.month
-        day = transaction.date.day
+        packedDate = Self.packedDate(from: transaction.date)
         amount = transaction.amount
         notes = transaction.notes
+    }
+
+    var unpackedDate: (year: Int, month: Int, day: Int) {
+        (year: packedDate / 10_000, month: (packedDate / 100) % 100, day: packedDate % 100)
+    }
+
+    static func packedDate(from date: (year: Int, month: Int, day: Int)) -> Int {
+        date.year * 10_000 + date.month * 100 + date.day
     }
 }
