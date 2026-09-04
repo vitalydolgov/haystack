@@ -9,18 +9,16 @@ struct EditAccount {
         self.transactions = transactions
     }
 
-    static func canExecute(name: String, workingBalance: Decimal?, closed: Bool) -> Bool {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return false }
-        return closed || workingBalance != nil
+    static func canExecute(name: String) -> Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    func execute(id: UUID, name: String, notes: String, workingBalance: Decimal?) async throws {
+    func execute(id: UUID, name: String, notes: String, workingBalance: Decimal) async throws {
         guard var account = await accounts.find(id: id) else {
             throw AccountError.notFound
         }
         var adjustment: Transaction?
-        if !account.isClosed, let workingBalance {
+        if !account.isClosed {
             let current = account.balance(await transactions.find(accountID: id))
             if current != workingBalance {
                 let adjustBalance = AdjustBalance(accounts: accounts, transactions: transactions)

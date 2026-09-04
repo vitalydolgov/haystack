@@ -12,6 +12,7 @@ struct EditAccountSheet: View {
     @State private var notes: String
     @State private var balanceText: String
     @State private var isConfirmingClose = false
+    @State private var saveID: UUID?
 
     init(account: AccountRecord, balance: Decimal) {
         accountID = account.id
@@ -26,10 +27,6 @@ struct EditAccountSheet: View {
         let trimmed = balanceText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return Decimal(string: trimmed, locale: .current)
-    }
-
-    private var canSave: Bool {
-        EditAccount.canExecute(name: name, workingBalance: parsedBalance, closed: isClosed)
     }
 
     var body: some View {
@@ -50,9 +47,11 @@ struct EditAccountSheet: View {
                         .labelStyle(.iconOnly)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", systemImage: "checkmark", action: save)
-                        .labelStyle(.iconOnly)
-                        .disabled(!canSave)
+                    Button("Save", systemImage: "checkmark") {
+                        saveID = UUID()
+                    }
+                    .labelStyle(.iconOnly)
+                    .disabled(!canSave || saveID != nil)
                 }
                 ToolbarItemGroup(placement: .secondaryAction) {
                     if isClosed {
@@ -71,21 +70,30 @@ struct EditAccountSheet: View {
             } message: {
                 Text("Before you can close this account, the balance will have to be zeroed out.")
             }
+            .task(id: saveID) {
+                guard saveID != nil else { return }
+                await save()
+            }
         }
     }
 
-    private func save() {
+    private var canSave: Bool {
+        EditAccount.canExecute(name: name)
+    }
+
+    private func save() async {
         guard let accountRepository, let transactionRepository else { return }
-        let workingBalance = isClosed ? nil : parsedBalance
-        guard EditAccount.canExecute(name: name, workingBalance: workingBalance, closed: isClosed) else { return }
-        Task {
+        guard EditAccount.canExecute(name: name) else { return }
+        do {
             try await EditAccount(accounts: accountRepository, transactions: transactionRepository).execute(
                 id: accountID,
                 name: name,
                 notes: notes,
-                workingBalance: workingBalance
+                workingBalance: parsedBalance ?? 0
             )
             dismiss()
+        } catch {
+            saveID = nil
         }
     }
 

@@ -9,9 +9,8 @@ struct AddAccount {
         self.transactions = transactions
     }
 
-    static func canExecute(name: String, type: AccountType?, balance: Decimal?) -> Bool {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !name.isEmpty && type != nil && balance != nil
+    static func canExecute(name: String) -> Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func execute(

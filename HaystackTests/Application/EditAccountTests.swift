@@ -42,33 +42,14 @@ struct EditAccountTests {
 
     // MARK: Validation
 
-    @Test(arguments: [
-        ("Wallet", Decimal?.some(0), false),
-        ("  Wallet  ", Decimal?.some(0), false),
-        ("Wallet", nil, true),
-        ("Wallet", Decimal?.some(0), true),
-    ])
-    func allowsSaveWhenRequiredFieldsArePresent(
-        name: String,
-        workingBalance: Decimal?,
-        closed: Bool
-    ) {
-        #expect(EditAccount.canExecute(name: name, workingBalance: workingBalance, closed: closed))
+    @Test(arguments: ["Wallet", "  Wallet  "])
+    func allowsSaveWhenNameIsPresent(name: String) {
+        #expect(EditAccount.canExecute(name: name))
     }
 
-    @Test(arguments: [
-        ("", Decimal?.some(0), false),
-        ("   ", Decimal?.some(0), false),
-        ("Wallet", nil, false),
-        ("", nil, true),
-        ("   ", nil, true),
-    ])
-    func doesNotAllowSaveWhenARequiredFieldIsMissing(
-        name: String,
-        workingBalance: Decimal?,
-        closed: Bool
-    ) {
-        #expect(!EditAccount.canExecute(name: name, workingBalance: workingBalance, closed: closed))
+    @Test(arguments: ["", "   "])
+    func doesNotAllowSaveWhenNameIsBlank(name: String) {
+        #expect(!EditAccount.canExecute(name: name))
     }
 
     // MARK: Errors

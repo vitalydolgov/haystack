@@ -35,30 +35,14 @@ struct AddAccountTests {
 
     // MARK: Validation
 
-    @Test(arguments: [
-        ("Wallet", AccountType.cash as AccountType?, Decimal?.some(0)),
-        ("  Wallet  ", AccountType.cash as AccountType?, Decimal?.some(0)),
-    ])
-    func allowsSaveWhenRequiredFieldsArePresent(
-        name: String,
-        type: AccountType?,
-        balance: Decimal?
-    ) {
-        #expect(AddAccount.canExecute(name: name, type: type, balance: balance))
+    @Test(arguments: ["Wallet", "  Wallet  "])
+    func allowsSaveWhenNameIsPresent(name: String) {
+        #expect(AddAccount.canExecute(name: name))
     }
 
-    @Test(arguments: [
-        ("", AccountType.cash as AccountType?, Decimal?.some(0)),
-        ("   ", AccountType.cash as AccountType?, Decimal?.some(0)),
-        ("Wallet", nil, Decimal?.some(0)),
-        ("Wallet", AccountType.cash as AccountType?, nil),
-    ])
-    func doesNotAllowSaveWhenARequiredFieldIsMissing(
-        name: String,
-        type: AccountType?,
-        balance: Decimal?
-    ) {
-        #expect(!AddAccount.canExecute(name: name, type: type, balance: balance))
+    @Test(arguments: ["", "   "])
+    func doesNotAllowSaveWhenNameIsBlank(name: String) {
+        #expect(!AddAccount.canExecute(name: name))
     }
 
     // MARK: Errors
