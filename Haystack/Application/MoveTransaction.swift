@@ -9,6 +9,10 @@ struct MoveTransaction {
         self.transactions = transactions
     }
 
+    static func canExecute(fromAccountID: UUID, toAccountID: UUID) -> Bool {
+        fromAccountID != toAccountID
+    }
+
     func execute(id: UUID, toAccountID: UUID) async throws {
         guard let transaction = await transactions.find(id: id) else {
             throw TransactionError.notFound
@@ -31,5 +35,4 @@ struct MoveTransaction {
         )
         try await transactions.save(moved)
     }
-
 }

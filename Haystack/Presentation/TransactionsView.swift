@@ -6,9 +6,10 @@ struct TransactionsView: View {
     @Query private var transactions: [TransactionRecord]
     @Environment(\.transactionRepository) private var transactionRepository
 
-    @State private var showingDeleteConfirmation = false
-    @State private var transactionToDelete: TransactionRecord?
+    @State private var deletingTransaction: TransactionRecord?
+    @State private var deleteID: UUID?
     @State private var isAddingTransaction = false
+    @State private var editingTransaction: TransactionRecord?
 
     init(account: AccountRecord) {
         self.account = account
@@ -42,13 +43,16 @@ struct TransactionsView: View {
                         .foregroundStyle(.secondary)
                     // TODO: status
                 }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    editingTransaction = transaction
+                }
                 .swipeActions(edge: .leading) {
                     // TODO: clear/unclear
                 }
                 .swipeActions(edge: .trailing) {
                     Button("Delete", systemImage: "trash", role: .destructive) {
-                        transactionToDelete = transaction
-                        showingDeleteConfirmation = true
+                        deletingTransaction = transaction
                     }
                 }
                 .contextMenu {
@@ -56,19 +60,21 @@ struct TransactionsView: View {
                     // TODO: clear/unclear
                     // TODO: duplicate
                     Button("Delete", systemImage: "trash", role: .destructive) {
-                        transactionToDelete = transaction
-                        showingDeleteConfirmation = true
+                        deletingTransaction = transaction
                     }
                 }
             }
         }
-        .alert("Delete Transaction", isPresented: $showingDeleteConfirmation) {
-            Button("Delete", role: .destructive, action: delete)
-            Button("Cancel", role: .cancel) {
-                transactionToDelete = nil
+        .alert("Delete Transaction", isPresented: isConfirmingDelete, presenting: deletingTransaction) { transaction in
+            Button("Delete", role: .destructive) {
+                deleteID = transaction.id
             }
-        } message: {
+        } message: { _ in
             Text("Do you really want to delete this transaction?")
+        }
+        .task(id: deleteID) {
+            guard let deleteID else { return }
+            await delete(id: deleteID)
         }
         .navigationTitle(account.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -85,15 +91,26 @@ struct TransactionsView: View {
             }
         }
         .sheet(isPresented: $isAddingTransaction) {
-            AddTransactionSheet(accountID: account.id)
+            TransactionSheet(accountID: account.id, mode: .add)
+        }
+        .sheet(item: $editingTransaction) { transaction in
+            TransactionSheet(accountID: account.id, mode: .edit(transaction.id))
         }
     }
 
-    private func delete() {
-        guard let transactionRepository, let id = transactionToDelete?.id else { return }
-        transactionToDelete = nil
-        Task {
+    private var isConfirmingDelete: Binding<Bool> {
+        Binding(
+            get: { deletingTransaction != nil },
+            set: { if !$0 { deletingTransaction = nil } }
+        )
+    }
+
+    private func delete(id: UUID) async {
+        guard let transactionRepository else { return }
+        do {
             try await DeleteTransaction(transactions: transactionRepository).execute(id: id)
+        } catch {
+            deleteID = nil
         }
     }
 
