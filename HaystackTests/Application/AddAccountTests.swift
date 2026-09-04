@@ -33,6 +33,17 @@ struct AddAccountTests {
         #expect(recorded.map(\.type) == [.adjustment])
     }
 
+    @Test func doesNotRecordAnAdjustmentWhenBalanceIsZero() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let added = try await AddAccount(accounts: accounts, transactions: transactions).execute(
+            name: "Wallet",
+            type: .cash
+        )
+
+        #expect(await transactions.find(accountID: added.id).isEmpty)
+    }
+
     // MARK: Validation
 
     @Test(arguments: ["Wallet", "  Wallet  "])

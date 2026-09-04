@@ -28,6 +28,21 @@ struct AdjustBalanceTests {
         #expect(recorded.map(\.type) == [.adjustment])
     }
 
+    @Test func doesNotRecordAnAdjustmentWhenAlreadyAtTarget() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let account = try Account.make()
+        await accounts.save(account)
+        await transactions.save(try Transaction.make(accountID: account.id, amount: 25))
+
+        try await AdjustBalance(accounts: accounts, transactions: transactions)
+            .execute(id: account.id, to: 25)
+
+        let recorded = await transactions.find(accountID: account.id)
+        #expect(recorded.count == 1)
+        #expect(recorded.map(\.type) == [.standard])
+    }
+
     // MARK: Errors
 
     @Test func failsWhenClosed() async throws {

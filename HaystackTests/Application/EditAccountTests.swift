@@ -40,6 +40,24 @@ struct EditAccountTests {
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
     }
 
+    @Test func doesNotRecordAnAdjustmentWhenWorkingBalanceIsUnchanged() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let account = try Account.make()
+        await accounts.save(account)
+        await transactions.save(try Transaction.make(accountID: account.id, amount: 42))
+
+        try await EditAccount(accounts: accounts, transactions: transactions).execute(
+            id: account.id,
+            name: "Cash",
+            notes: "On hand",
+            workingBalance: 42
+        )
+        let recorded = await transactions.find(accountID: account.id)
+        #expect(recorded.count == 1)
+        #expect(recorded.map(\.type) == [.standard])
+    }
+
     // MARK: Validation
 
     @Test(arguments: ["Wallet", "  Wallet  "])
