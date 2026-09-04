@@ -5,6 +5,7 @@ import SwiftData
 final class TransactionRecord {
     @Attribute(.unique) var id: UUID
     var accountID: UUID
+    var type: TransactionType
     var year: Int
     var month: Int
     var day: Int
@@ -15,6 +16,7 @@ final class TransactionRecord {
     init(
         id: UUID,
         accountID: UUID,
+        type: TransactionType,
         year: Int,
         month: Int,
         day: Int,
@@ -24,6 +26,7 @@ final class TransactionRecord {
     ) {
         self.id = id
         self.accountID = accountID
+        self.type = type
         self.year = year
         self.month = month
         self.day = day
@@ -36,6 +39,7 @@ final class TransactionRecord {
         self.init(
             id: transaction.id,
             accountID: transaction.accountID,
+            type: transaction.type,
             year: transaction.date.year,
             month: transaction.date.month,
             day: transaction.date.day,
@@ -51,7 +55,8 @@ final class TransactionRecord {
             accountID: accountID,
             date: (year: year, month: month, day: day),
             amount: amount,
-            notes: notes
+            notes: notes,
+            type: type
         )
     }
 

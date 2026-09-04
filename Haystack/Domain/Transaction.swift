@@ -1,5 +1,10 @@
 import Foundation
 
+enum TransactionType: String, Codable, Sendable, Equatable, CaseIterable {
+    case standard
+    case adjustment
+}
+
 enum TransactionError: Error, Equatable, Sendable {
     case invalidDate
 }
@@ -7,6 +12,7 @@ enum TransactionError: Error, Equatable, Sendable {
 struct Transaction: Identifiable, Equatable, Sendable {
     let id: UUID
     let accountID: UUID
+    let type: TransactionType
     private(set) var date: (year: Int, month: Int, day: Int)
     private(set) var amount: Decimal
     private(set) var notes: String
@@ -16,13 +22,34 @@ struct Transaction: Identifiable, Equatable, Sendable {
         accountID: UUID,
         date: (year: Int, month: Int, day: Int),
         amount: Decimal,
-        notes: String = ""
+        notes: String = "",
+        type: TransactionType = .standard
     ) throws {
         self.id = id
         self.accountID = accountID
+        self.type = type
         self.date = try Self.validatedDate(date)
         self.amount = amount
         self.notes = notes
+    }
+
+    init(
+        id: UUID = UUID(),
+        accountID: UUID,
+        date: Date,
+        amount: Decimal,
+        notes: String = "",
+        type: TransactionType = .standard
+    ) throws {
+        let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
+        try self.init(
+            id: id,
+            accountID: accountID,
+            date: (year: components.year!, month: components.month!, day: components.day!),
+            amount: amount,
+            notes: notes,
+            type: type
+        )
     }
 
     mutating func update(

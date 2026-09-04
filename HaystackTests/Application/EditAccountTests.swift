@@ -5,10 +5,12 @@ import Testing
 struct EditAccountTests {
     @Test func persistsNameNotesAndWorkingBalance() async throws {
         let accounts = InMemoryAccountRepository()
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
+        let transactions = InMemoryTransactionRepository()
+        let account = try Account.make(type: .debitCard, notes: "Pocket cash")
         await accounts.save(account)
+        await transactions.save(try Transaction.make(accountID: account.id, amount: 42))
 
-        try await EditAccount(accounts: accounts).execute(
+        try await EditAccount(accounts: accounts, transactions: transactions).execute(
             id: account.id,
             name: "  Cash  ",
             notes: "On hand",
@@ -17,15 +19,16 @@ struct EditAccountTests {
         let stored = try #require(await accounts.find(id: account.id))
         #expect(stored.name == "Cash")
         #expect(stored.notes == "On hand")
-        #expect(stored.balance == 10)
+        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 10)
     }
 
     @Test func persistsNameAndNotesWhenClosedWithoutChangingBalance() async throws {
         let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
         let account = try Account.make(type: .savings, notes: "Pocket cash", isClosed: true)
         await accounts.save(account)
 
-        try await EditAccount(accounts: accounts).execute(
+        try await EditAccount(accounts: accounts, transactions: transactions).execute(
             id: account.id,
             name: "Old Wallet",
             notes: "Retired",
@@ -34,7 +37,7 @@ struct EditAccountTests {
         let stored = try #require(await accounts.find(id: account.id))
         #expect(stored.name == "Old Wallet")
         #expect(stored.notes == "Retired")
-        #expect(stored.balance == 0)
+        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
     }
 
     // MARK: Validation
@@ -72,11 +75,13 @@ struct EditAccountTests {
 
     @Test func doesNotPersistWhenNameIsBlank() async throws {
         let accounts = InMemoryAccountRepository()
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
+        let transactions = InMemoryTransactionRepository()
+        let account = try Account.make(type: .debitCard, notes: "Pocket cash")
         await accounts.save(account)
+        await transactions.save(try Transaction.make(accountID: account.id, amount: 42))
 
         await #expect(throws: AccountError.blankName) {
-            try await EditAccount(accounts: accounts).execute(
+            try await EditAccount(accounts: accounts, transactions: transactions).execute(
                 id: account.id,
                 name: "   ",
                 notes: "changed",
@@ -86,13 +91,14 @@ struct EditAccountTests {
         let stored = try #require(await accounts.find(id: account.id))
         #expect(stored.name == "Wallet")
         #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance == 42)
+        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 42)
     }
 
     @Test func failsWhenMissing() async {
         let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
         await #expect(throws: AccountError.notFound) {
-            try await EditAccount(accounts: accounts).execute(
+            try await EditAccount(accounts: accounts, transactions: transactions).execute(
                 id: UUID(),
                 name: "Wallet",
                 notes: "",
@@ -103,13 +109,14 @@ struct EditAccountTests {
 
     @Test func failsWhenDeleted() async throws {
         let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
         let deleted = try account.delete()
         await accounts.delete(deleted)
 
         await #expect(throws: AccountError.notFound) {
-            try await EditAccount(accounts: accounts).execute(
+            try await EditAccount(accounts: accounts, transactions: transactions).execute(
                 id: account.id,
                 name: "Cash",
                 notes: "changed",

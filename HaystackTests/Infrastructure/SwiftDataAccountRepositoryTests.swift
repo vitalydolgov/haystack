@@ -12,7 +12,6 @@ struct SwiftDataAccountRepositoryTests {
             name: "Wallet",
             type: .debitCard,
             notes: "Pocket cash",
-            balance: 42,
             isClosed: true
         )
         try await writer.save(account)
@@ -22,26 +21,23 @@ struct SwiftDataAccountRepositoryTests {
         #expect(stored.name == "Wallet")
         #expect(stored.type == .debitCard)
         #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance == 42)
         #expect(stored.isClosed == true)
     }
 
     @Test func updatesAnExistingAccountInPlace() async throws {
         let (container, writer) = try await makeStore()
-        var account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
+        var account = try Account.make(type: .debitCard, notes: "Pocket cash")
         try await writer.save(account)
 
         try account.rename("Cash")
         account.type = .cash
         account.notes = "On hand"
-        try account.adjustBalance(to: 10)
         try await writer.save(account)
 
         let stored = try #require(await reader(container).find(id: account.id))
         #expect(stored.name == "Cash")
         #expect(stored.type == .cash)
         #expect(stored.notes == "On hand")
-        #expect(stored.balance == 10)
     }
 
     @Test func storesAccountsSeparately() async throws {

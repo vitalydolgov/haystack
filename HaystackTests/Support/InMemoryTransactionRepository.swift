@@ -14,6 +14,10 @@ actor InMemoryTransactionRepository: TransactionRepository {
         transactions[id]
     }
 
+    func find(accountID: UUID) -> [Transaction] {
+        transactions.values.filter { $0.accountID == accountID }
+    }
+
     func delete(_ transaction: DeletedTransaction) {
         guard tombstones[transaction.id] == nil else { return }
         transactions[transaction.id] = nil

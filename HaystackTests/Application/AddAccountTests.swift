@@ -5,7 +5,8 @@ import Testing
 struct AddAccountTests {
     @Test func persistsTheAccount() async throws {
         let accounts = InMemoryAccountRepository()
-        let added = try await AddAccount(accounts: accounts).execute(
+        let transactions = InMemoryTransactionRepository()
+        let added = try await AddAccount(accounts: accounts, transactions: transactions).execute(
             name: "  Wallet  ",
             type: .cash,
             notes: "Pocket cash",
@@ -16,7 +17,20 @@ struct AddAccountTests {
         #expect(stored.name == "Wallet")
         #expect(stored.type == .cash)
         #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance == 42)
+        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 42)
+    }
+
+    @Test func recordsAnAdjustmentWhenBalanceIsNonZero() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let added = try await AddAccount(accounts: accounts, transactions: transactions).execute(
+            name: "Wallet",
+            type: .cash,
+            balance: 42
+        )
+
+        let recorded = await transactions.find(accountID: added.id)
+        #expect(recorded.map(\.type) == [.adjustment])
     }
 
     // MARK: Validation
@@ -51,8 +65,9 @@ struct AddAccountTests {
 
     @Test func doesNotPersistWhenNameIsBlank() async {
         let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
         await #expect(throws: AccountError.blankName) {
-            try await AddAccount(accounts: accounts).execute(
+            try await AddAccount(accounts: accounts, transactions: transactions).execute(
                 name: "   ",
                 type: .cash,
                 notes: "Pocket cash",

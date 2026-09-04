@@ -13,7 +13,8 @@ struct SwiftDataTransactionRepositoryTests {
             accountID: accountID,
             date: (year: 2024, month: 3, day: 15),
             amount: -42.5,
-            notes: "Groceries"
+            notes: "Groceries",
+            type: .adjustment
         )
         try await writer.save(transaction)
 
@@ -23,6 +24,7 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(stored.date == (year: 2024, month: 3, day: 15))
         #expect(stored.amount == -42.5)
         #expect(stored.notes == "Groceries")
+        #expect(stored.type == .adjustment)
     }
 
     @Test func updatesAnExistingTransactionInPlace() async throws {
@@ -88,6 +90,38 @@ struct SwiftDataTransactionRepositoryTests {
     @Test func returnsNilWhenMissing() async throws {
         let (_, transactions) = try await makeStore()
         #expect(await transactions.find(id: UUID()) == nil)
+    }
+
+    @Test func findsTransactionsForAnAccount() async throws {
+        let (_, transactions) = try await makeStore()
+        let accountID = UUID()
+        let rent = try Transaction.make(accountID: accountID, amount: -100)
+        try await transactions.save(rent)
+
+        let found = await transactions.find(accountID: accountID)
+        #expect(found.map(\.id) == [rent.id])
+    }
+
+    @Test func doesNotIncludeOtherAccounts() async throws {
+        let (_, transactions) = try await makeStore()
+        let accountID = UUID()
+        let rent = try Transaction.make(accountID: accountID, amount: -100)
+        let other = try Transaction.make(accountID: UUID(), amount: 50)
+        try await transactions.save(rent)
+        try await transactions.save(other)
+
+        let found = await transactions.find(accountID: accountID)
+        #expect(found.map(\.id) == [rent.id])
+    }
+
+    @Test func hidesDeletedWhenFindingByAccount() async throws {
+        let (_, transactions) = try await makeStore()
+        let accountID = UUID()
+        let rent = try Transaction.make(accountID: accountID, amount: -100)
+        try await transactions.save(rent)
+        try await transactions.delete(rent.delete(at: Date(timeIntervalSince1970: 1_700_000_000)))
+
+        #expect(await transactions.find(accountID: accountID).isEmpty)
     }
 
     // MARK: Delete

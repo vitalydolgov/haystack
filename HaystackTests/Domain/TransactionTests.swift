@@ -13,7 +13,8 @@ struct TransactionTests {
             accountID: UUID(),
             date: (year: 2024, month: 1, day: 1),
             amount: -5,
-            notes: "changed"
+            notes: "changed",
+            type: .adjustment
         )
 
         #expect(left == right)
@@ -24,6 +25,13 @@ struct TransactionTests {
         let right = try Transaction.make()
 
         #expect(left != right)
+    }
+
+    // MARK: Type
+
+    @Test func startsAsStandard() throws {
+        let transaction = try Transaction.make()
+        #expect(transaction.type == .standard)
     }
 
     // MARK: Date

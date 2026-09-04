@@ -7,13 +7,12 @@ struct AccountTests {
 
     @Test func sameIDMeansEqual() throws {
         let id = UUID()
-        let left = try Account.make(id: id, name: "Wallet", type: .cash, balance: 10)
+        let left = try Account.make(id: id, name: "Wallet", type: .cash)
         let right = try Account.make(
             id: id,
             name: "Checking",
             type: .debitCard,
-            notes: "changed",
-            balance: 99
+            notes: "changed"
         )
 
         #expect(left == right)
@@ -85,20 +84,6 @@ struct AccountTests {
         #expect(account.balance(transactions) == 10)
     }
 
-    @Test func adjustsWhenOpen() throws {
-        var account = try Account.make()
-        try account.adjustBalance(to: 25)
-        #expect(account.balance == 25)
-    }
-
-    @Test func failsWhenClosed() throws {
-        var account = try Account.make(isClosed: true)
-        #expect(throws: AccountError.closed) {
-            try account.adjustBalance(to: 10)
-        }
-        #expect(account.balance == 0)
-    }
-
     // MARK: Close
 
     @Test func closesWhenBalanceIsZero() throws {
@@ -114,12 +99,13 @@ struct AccountTests {
     }
 
     @Test func failsWhenBalanceIsNonZero() throws {
-        var account = try Account.make(balance: 10)
+        var account = try Account.make()
+        let transactions = [try Transaction.make(accountID: account.id, amount: 10)]
         #expect(throws: AccountError.nonZeroBalance) {
-            try account.close()
+            try account.close(transactions)
         }
         #expect(!account.isClosed)
-        #expect(account.balance == 10)
+        #expect(account.balance(transactions) == 10)
     }
 
     // MARK: Reopen

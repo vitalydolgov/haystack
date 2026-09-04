@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EditAccountSheet: View {
     @Environment(\.accountRepository) private var accountRepository
+    @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
 
     private let accountID: UUID
@@ -12,13 +13,13 @@ struct EditAccountSheet: View {
     @State private var balanceText: String
     @State private var isConfirmingClose = false
 
-    init(account: AccountRecord) {
+    init(account: AccountRecord, balance: Decimal) {
         accountID = account.id
         isClosed = account.isClosed
-        balance = account.balance
+        self.balance = balance
         _name = State(initialValue: account.name)
         _notes = State(initialValue: account.notes)
-        _balanceText = State(initialValue: account.balance.formatted(.number))
+        _balanceText = State(initialValue: balance.formatted(.number))
     }
 
     private var parsedBalance: Decimal? {
@@ -74,11 +75,11 @@ struct EditAccountSheet: View {
     }
 
     private func save() {
-        guard let accountRepository else { return }
+        guard let accountRepository, let transactionRepository else { return }
         let workingBalance = isClosed ? nil : parsedBalance
         guard EditAccount.canExecute(name: name, workingBalance: workingBalance, closed: isClosed) else { return }
         Task {
-            try await EditAccount(accounts: accountRepository).execute(
+            try await EditAccount(accounts: accountRepository, transactions: transactionRepository).execute(
                 id: accountID,
                 name: name,
                 notes: notes,
@@ -97,9 +98,10 @@ struct EditAccountSheet: View {
     }
 
     private func close() {
-        guard let accountRepository else { return }
+        guard let accountRepository, let transactionRepository else { return }
         Task {
-            try await CloseAccount(accounts: accountRepository).execute(id: accountID)
+            try await CloseAccount(accounts: accountRepository, transactions: transactionRepository)
+                .execute(id: accountID)
             dismiss()
         }
     }
