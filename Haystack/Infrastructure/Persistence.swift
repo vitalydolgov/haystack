@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum Persistence {
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
-        let schema = Schema([AccountRecord.self])
+        let schema = Schema([AccountRecord.self, TransactionRecord.self])
         let configuration = ModelConfiguration(
             inMemory ? UUID().uuidString : "haystack",
             schema: schema,

@@ -60,6 +60,31 @@ struct AccountTests {
 
     // MARK: Balance
 
+    @Test func sumsThisAccountsTransactions() throws {
+        let account = try Account.make()
+        let transactions = [
+            try Transaction.make(accountID: account.id, amount: 10),
+            try Transaction.make(accountID: account.id, amount: -3),
+        ]
+
+        #expect(account.balance(transactions) == 7)
+    }
+
+    @Test func isZeroWhenThereAreNoTransactions() throws {
+        let account = try Account.make()
+        #expect(account.balance([]) == 0)
+    }
+
+    @Test func ignoresTransactionsForOtherAccounts() throws {
+        let account = try Account.make()
+        let transactions = [
+            try Transaction.make(accountID: account.id, amount: 10),
+            try Transaction.make(accountID: UUID(), amount: 99),
+        ]
+
+        #expect(account.balance(transactions) == 10)
+    }
+
     @Test func adjustsWhenOpen() throws {
         var account = try Account.make()
         try account.adjustBalance(to: 25)

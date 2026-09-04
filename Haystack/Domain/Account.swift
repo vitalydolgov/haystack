@@ -19,7 +19,6 @@ struct Account: Identifiable, Equatable, Sendable {
     private(set) var name: String
     var type: AccountType
     var notes: String
-    // TODO: later it will be calculated via transactions
     private(set) var balance: Decimal
     private(set) var isClosed: Bool
 
@@ -56,6 +55,13 @@ struct Account: Identifiable, Equatable, Sendable {
     mutating func adjustBalance(to newBalance: Decimal) throws {
         guard !isClosed else { throw AccountError.closed }
         balance = newBalance
+    }
+
+    func balance(_ transactions: [Transaction]) -> Decimal {
+        transactions.reduce(into: 0) { total, transaction in
+            guard transaction.accountID == id else { return }
+            total += transaction.amount
+        }
     }
 
     func delete(at date: Date = .now) throws -> DeletedAccount {
