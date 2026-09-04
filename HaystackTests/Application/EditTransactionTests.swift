@@ -34,11 +34,11 @@ struct EditTransactionTests {
     // MARK: Validation
 
     @Test func allowsSaveWhenAmountIsNonZero() {
-        #expect(EditTransaction.canExecute(accountID: UUID(), amount: 1, date: .now))
+        #expect(EditTransaction.canExecute(amount: 1))
     }
 
     @Test func doesNotAllowSaveWhenAmountIsZero() {
-        #expect(!EditTransaction.canExecute(accountID: UUID(), amount: 0, date: .now))
+        #expect(!EditTransaction.canExecute(amount: 0))
     }
 
     // MARK: Errors

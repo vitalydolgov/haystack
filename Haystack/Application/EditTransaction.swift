@@ -9,7 +9,7 @@ struct EditTransaction {
         self.transactions = transactions
     }
 
-    static func canExecute(accountID: UUID, amount: Decimal, date: Date) -> Bool {
+    static func canExecute(amount: Decimal) -> Bool {
         amount != 0
     }
 

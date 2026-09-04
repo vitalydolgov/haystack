@@ -29,11 +29,11 @@ struct AddTransactionTests {
     // MARK: Validation
 
     @Test func allowsSaveWhenAmountIsNonZero() {
-        #expect(AddTransaction.canExecute(accountID: UUID(), amount: 1, date: .now))
+        #expect(AddTransaction.canExecute(amount: 1))
     }
 
     @Test func doesNotAllowSaveWhenAmountIsZero() {
-        #expect(!AddTransaction.canExecute(accountID: UUID(), amount: 0, date: .now))
+        #expect(!AddTransaction.canExecute(amount: 0))
     }
 
     // MARK: Errors
