@@ -23,6 +23,7 @@ struct AccountsView: View {
         accounts.filter(\.isClosed)
     }
 
+    // TODO: fetch
     private var currencyCode: String {
         Locale.current.currency?.identifier ?? "USD"
     }
@@ -81,8 +82,8 @@ struct AccountsView: View {
     }
 
     private func accountRow(_ account: AccountRecord) -> some View {
-        Button {
-            accountToEdit = account
+        NavigationLink {
+            TransactionsView(account: account)
         } label: {
             HStack {
                 Text(account.name)
@@ -92,7 +93,6 @@ struct AccountsView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .buttonStyle(.plain)
         .foregroundStyle(.primary)
         .contextMenu {
             Button("Edit Account") {

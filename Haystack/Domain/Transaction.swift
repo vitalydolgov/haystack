@@ -7,6 +7,7 @@ enum TransactionType: String, Codable, Sendable, Equatable, CaseIterable {
 
 enum TransactionError: Error, Equatable, Sendable {
     case invalidDate
+    case notFound
 }
 
 struct Transaction: Identifiable, Equatable, Sendable {
