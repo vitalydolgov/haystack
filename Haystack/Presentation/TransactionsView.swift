@@ -5,10 +5,10 @@ struct TransactionsView: View {
     let account: AccountRecord
     @Query private var transactions: [TransactionRecord]
     @Environment(\.transactionRepository) private var transactionRepository
-    @Environment(\.modelContext) private var modelContext
 
     @State private var showingDeleteConfirmation = false
     @State private var transactionToDelete: TransactionRecord?
+    @State private var isAddingTransaction = false
 
     init(account: AccountRecord) {
         self.account = account
@@ -80,18 +80,12 @@ struct TransactionsView: View {
             // TODO: hide/show reconciled
             ToolbarItem(placement: .primaryAction) {
                 Button("Add Transaction", systemImage: "plus") {
-                    // TODO: add transaction sheet
-                    let transaction = TransactionRecord(
-                        try! Transaction(
-                            accountID: account.id,
-                            date: Date(),
-                            amount: -100,
-                            notes: "Mock transaction"
-                        )
-                    )
-                    modelContext.insert(transaction)
+                    isAddingTransaction = true
                 }
             }
+        }
+        .sheet(isPresented: $isAddingTransaction) {
+            AddTransactionSheet(accountID: account.id)
         }
     }
 
