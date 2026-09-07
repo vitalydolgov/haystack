@@ -31,4 +31,12 @@ actor InMemoryTransactionRepository: TransactionRepository {
     func all() -> [Transaction] {
         Array(transactions.values)
     }
+
+    func snapshot() -> ([UUID: Transaction], [UUID: DeletedTransaction]) {
+        (transactions, tombstones)
+    }
+
+    func restore(_ snapshot: ([UUID: Transaction], [UUID: DeletedTransaction])) {
+        (transactions, tombstones) = snapshot
+    }
 }

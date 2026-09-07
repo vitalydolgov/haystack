@@ -122,15 +122,15 @@ struct SwiftDataAccountRepositoryTests {
 
     // MARK: - Helpers
 
-    private func makeStore() async throws -> (ModelContainer, SwiftDataAccountRepository) {
+    private func makeStore() async throws -> (ModelContainer, DurableAccountRepository) {
         let container = try await MainActor.run {
             try Persistence.makeContainer(inMemory: true)
         }
-        return (container, SwiftDataAccountRepository(modelContainer: container))
+        return (container, DurableAccountRepository(modelContainer: container))
     }
 
-    private func reader(_ container: ModelContainer) -> SwiftDataAccountRepository {
-        SwiftDataAccountRepository(modelContainer: container)
+    private func reader(_ container: ModelContainer) -> DurableAccountRepository {
+        DurableAccountRepository(modelContainer: container)
     }
 
     private func storedDeletedAt(id: UUID, in container: ModelContainer) async throws -> Date? {

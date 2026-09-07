@@ -162,15 +162,15 @@ struct SwiftDataTransactionRepositoryTests {
 
     // MARK: - Helpers
 
-    private func makeStore() async throws -> (ModelContainer, SwiftDataTransactionRepository) {
+    private func makeStore() async throws -> (ModelContainer, DurableTransactionRepository) {
         let container = try await MainActor.run {
             try Persistence.makeContainer(inMemory: true)
         }
-        return (container, SwiftDataTransactionRepository(modelContainer: container))
+        return (container, DurableTransactionRepository(modelContainer: container))
     }
 
-    private func reader(_ container: ModelContainer) -> SwiftDataTransactionRepository {
-        SwiftDataTransactionRepository(modelContainer: container)
+    private func reader(_ container: ModelContainer) -> DurableTransactionRepository {
+        DurableTransactionRepository(modelContainer: container)
     }
 
     private func storedDeletedAt(id: UUID, in container: ModelContainer) async throws -> Date? {
