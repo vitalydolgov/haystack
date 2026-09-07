@@ -1,16 +1,14 @@
 import Foundation
 
 struct DeleteTransaction {
-    private let transactions: TransactionRepository
-
-    init(transactions: TransactionRepository) {
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     func execute(id: UUID, at date: Date = .now) async throws {
-        guard let transaction = await transactions.find(id: id) else {
-            throw TransactionError.notFound
+        try await unitOfWork.perform { store in
+            guard let transaction = await store.transactions.find(id: id) else {
+                throw TransactionError.notFound
+            }
+            try await store.transactions.delete(transaction.delete(at: date))
         }
-        try await transactions.delete(transaction.delete(at: date))
     }
 }

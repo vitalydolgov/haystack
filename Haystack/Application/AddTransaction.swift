@@ -1,13 +1,7 @@
 import Foundation
 
 struct AddTransaction {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
-
-    init(accounts: AccountRepository, transactions: TransactionRepository) {
-        self.accounts = accounts
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     static func canExecute(amount: Decimal) -> Bool {
         amount != 0
@@ -19,17 +13,19 @@ struct AddTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws -> Transaction {
-        guard let account = await accounts.find(id: accountID) else {
-            throw AccountError.notFound
+        try await unitOfWork.perform { store in
+            guard let account = await store.accounts.find(id: accountID) else {
+                throw AccountError.notFound
+            }
+            guard !account.isClosed else { throw AccountError.closed }
+            let transaction = try Transaction(
+                accountID: accountID,
+                date: date,
+                amount: amount,
+                notes: notes
+            )
+            try await store.transactions.save(transaction)
+            return transaction
         }
-        guard !account.isClosed else { throw AccountError.closed }
-        let transaction = try Transaction(
-            accountID: accountID,
-            date: date,
-            amount: amount,
-            notes: notes
-        )
-        try await transactions.save(transaction)
-        return transaction
     }
 }

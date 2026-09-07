@@ -5,7 +5,7 @@ struct TransactionsView: View {
     let accountID: UUID
     @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
-    @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(\.unitOfWork) private var unitOfWork
     @Environment(Navigator.self) private var navigator
 
     @State private var deletingTransaction: TransactionRecord?
@@ -114,9 +114,9 @@ struct TransactionsView: View {
     }
 
     private func delete(id: UUID) async {
-        guard let transactionRepository else { return }
+        guard let unitOfWork else { return }
         do {
-            try await DeleteTransaction(transactions: transactionRepository).execute(id: id)
+            try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: id)
         } catch {
             deleteID = nil
         }

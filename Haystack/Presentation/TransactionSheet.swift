@@ -8,6 +8,7 @@ struct TransactionSheet: View {
 
     @Environment(\.accountRepository) private var accountRepository
     @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.dismiss) private var dismiss
 
     let accountID: UUID
@@ -130,12 +131,12 @@ struct TransactionSheet: View {
     }
 
     private func save() async {
-        guard let accountRepository, let transactionRepository else { return }
+        guard let unitOfWork else { return }
         do {
             switch mode {
             case .add:
                 guard AddTransaction.canExecute(amount: signedAmount) else { return }
-                let addTransaction = AddTransaction(accounts: accountRepository, transactions: transactionRepository)
+                let addTransaction = AddTransaction(unitOfWork: unitOfWork)
                 _ = try await addTransaction.execute(
                     accountID: selectedAccountID,
                     date: date,
@@ -144,14 +145,14 @@ struct TransactionSheet: View {
                 )
             case .edit(let transactionID) where selectedAccountID != accountID:
                 guard MoveTransaction.canExecute(fromAccountID: accountID, toAccountID: selectedAccountID) else { return }
-                let moveTransaction = MoveTransaction(accounts: accountRepository, transactions: transactionRepository)
+                let moveTransaction = MoveTransaction(unitOfWork: unitOfWork)
                 try await moveTransaction.execute(
                     id: transactionID,
                     toAccountID: selectedAccountID
                 )
             case .edit(let transactionID):
                 guard EditTransaction.canExecute(amount: signedAmount) else { return }
-                let editTransaction = EditTransaction(accounts: accountRepository, transactions: transactionRepository)
+                let editTransaction = EditTransaction(unitOfWork: unitOfWork)
                 try await editTransaction.execute(
                     id: transactionID,
                     accountID: selectedAccountID,

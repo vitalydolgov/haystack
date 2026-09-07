@@ -1,13 +1,7 @@
 import Foundation
 
 struct EditTransaction {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
-
-    init(accounts: AccountRepository, transactions: TransactionRepository) {
-        self.accounts = accounts
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     static func canExecute(amount: Decimal) -> Bool {
         amount != 0
@@ -20,26 +14,25 @@ struct EditTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws {
-        guard let existing = await transactions.find(id: id) else {
-            throw TransactionError.notFound
+        try await unitOfWork.perform { store in
+            guard let existing = await store.transactions.find(id: id),
+                  existing.accountID == accountID else {
+                throw TransactionError.notFound
+            }
+            guard let account = await store.accounts.find(id: accountID) else {
+                throw AccountError.notFound
+            }
+            guard !account.isClosed else {
+                throw AccountError.closed
+            }
+            var updated = existing
+            try updated.update(
+                date: Self.dateComponents(from: date),
+                amount: amount,
+                notes: notes
+            )
+            try await store.transactions.save(updated)
         }
-        guard existing.accountID == accountID else {
-            throw TransactionError.notFound
-        }
-        guard let account = await accounts.find(id: accountID) else {
-            throw AccountError.notFound
-        }
-        guard !account.isClosed else {
-            throw AccountError.closed
-        }
-
-        var updated = existing
-        try updated.update(
-            date: Self.dateComponents(from: date),
-            amount: amount,
-            notes: notes
-        )
-        try await transactions.save(updated)
     }
 
     private static func dateComponents(from date: Date) -> (year: Int, month: Int, day: Int) {
