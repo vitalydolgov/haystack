@@ -6,7 +6,8 @@ struct AddAccountTests {
     @Test func persistsTheAccount() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let added = try await AddAccount(accounts: accounts, transactions: transactions).execute(
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let added = try await AddAccount(unitOfWork: unitOfWork).execute(
             name: "  Wallet  ",
             type: .cash,
             notes: "Pocket cash",
@@ -23,7 +24,8 @@ struct AddAccountTests {
     @Test func recordsAnAdjustmentWhenBalanceIsNonZero() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let added = try await AddAccount(accounts: accounts, transactions: transactions).execute(
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let added = try await AddAccount(unitOfWork: unitOfWork).execute(
             name: "Wallet",
             type: .cash,
             balance: 42
@@ -36,7 +38,8 @@ struct AddAccountTests {
     @Test func doesNotRecordAnAdjustmentWhenBalanceIsZero() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let added = try await AddAccount(accounts: accounts, transactions: transactions).execute(
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let added = try await AddAccount(unitOfWork: unitOfWork).execute(
             name: "Wallet",
             type: .cash
         )
@@ -61,8 +64,9 @@ struct AddAccountTests {
     @Test func doesNotPersistWhenNameIsBlank() async {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         await #expect(throws: AccountError.blankName) {
-            try await AddAccount(accounts: accounts, transactions: transactions).execute(
+            try await AddAccount(unitOfWork: unitOfWork).execute(
                 name: "   ",
                 type: .cash,
                 notes: "Pocket cash",

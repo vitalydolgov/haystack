@@ -6,6 +6,7 @@ struct MoveTransactionTests {
     @Test func persistsTheMovedTransaction() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let source = try Account.make(name: "Wallet")
         let target = try Account.make(name: "Savings", type: .savings)
         await accounts.save(source)
@@ -18,7 +19,7 @@ struct MoveTransactionTests {
         )
         await transactions.save(transaction)
 
-        try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+        try await MoveTransaction(unitOfWork: unitOfWork).execute(
             id: transaction.id,
             toAccountID: target.id
         )
@@ -36,12 +37,13 @@ struct MoveTransactionTests {
     @Test func doesNotChangeWhenAlreadyOnTheTargetAccount() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
         let transaction = try Transaction.make(accountID: account.id)
         await transactions.save(transaction)
 
-        try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+        try await MoveTransaction(unitOfWork: unitOfWork).execute(
             id: transaction.id,
             toAccountID: account.id
         )
@@ -54,8 +56,9 @@ struct MoveTransactionTests {
     @Test func failsWhenMissing() async {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         await #expect(throws: TransactionError.notFound) {
-            try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: UUID(),
                 toAccountID: UUID()
             )
@@ -65,6 +68,7 @@ struct MoveTransactionTests {
     @Test func failsWhenDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let source = try Account.make()
         let target = try Account.make(name: "Savings")
         await accounts.save(source)
@@ -74,7 +78,7 @@ struct MoveTransactionTests {
         await transactions.delete(transaction.delete())
 
         await #expect(throws: TransactionError.notFound) {
-            try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 toAccountID: target.id
             )
@@ -86,13 +90,14 @@ struct MoveTransactionTests {
     @Test func failsWhenTheTargetIsMissing() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let source = try Account.make()
         await accounts.save(source)
         let transaction = try Transaction.make(accountID: source.id)
         await transactions.save(transaction)
 
         await #expect(throws: AccountError.notFound) {
-            try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 toAccountID: UUID()
             )
@@ -104,6 +109,7 @@ struct MoveTransactionTests {
     @Test func failsWhenTheTargetIsDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let source = try Account.make()
         let target = try Account.make(name: "Savings", type: .savings, isClosed: true)
         await accounts.save(source)
@@ -113,7 +119,7 @@ struct MoveTransactionTests {
         await accounts.delete(try target.delete())
 
         await #expect(throws: AccountError.notFound) {
-            try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 toAccountID: target.id
             )
@@ -125,6 +131,7 @@ struct MoveTransactionTests {
     @Test func failsWhenTheTargetIsClosed() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let source = try Account.make()
         let target = try Account.make(name: "Savings", type: .savings, isClosed: true)
         await accounts.save(source)
@@ -133,7 +140,7 @@ struct MoveTransactionTests {
         await transactions.save(transaction)
 
         await #expect(throws: AccountError.closed) {
-            try await MoveTransaction(accounts: accounts, transactions: transactions).execute(
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 toAccountID: target.id
             )
