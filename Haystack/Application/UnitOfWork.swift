@@ -1,8 +1,12 @@
 import Foundation
 
-protocol UnitOfWork: Sendable {
-    var accounts: any AccountRepository { get }
-    var transactions: any TransactionRepository { get }
+struct Store: Sendable {
+    let accounts: any AccountRepository
+    let transactions: any TransactionRepository
+}
 
-    func perform<T: Sendable>(_ work: @Sendable () async throws -> T) async throws -> T
+protocol UnitOfWork: Sendable {
+    var store: Store { get }
+
+    func perform<T: Sendable>(_ work: @Sendable (Store) async throws -> T) async throws -> T
 }
