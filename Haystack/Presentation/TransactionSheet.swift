@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct TransactionSheet: View {
@@ -6,25 +7,38 @@ struct TransactionSheet: View {
         case edit(UUID)
     }
 
-    @Environment(\.accountRepository) private var accountRepository
-    @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.dismiss) private var dismiss
 
     let accountID: UUID
     let mode: Mode
+    @Query private var accounts: [AccountRecord]
+    @Query private var transactions: [TransactionRecord]
     @State private var amountText = ""
     @State private var isOutflow = true
     @State private var date = Date()
     @State private var notes = ""
     @State private var saveID: UUID?
-    @State private var accountName = ""
     @State private var selectedAccountID: UUID
 
     init(accountID: UUID, mode: Mode) {
         self.accountID = accountID
         self.mode = mode
+        let transactionID = switch mode {
+        case .add: UUID()
+        case .edit(let id): id
+        }
         _selectedAccountID = State(initialValue: accountID)
+        _accounts = Query(filter: #Predicate<AccountRecord> { $0.deletedAt == nil })
+        _transactions = Query(
+            filter: #Predicate<TransactionRecord> {
+                $0.id == transactionID && $0.deletedAt == nil
+            }
+        )
+    }
+
+    private var accountName: String {
+        accounts.first { $0.id == selectedAccountID }?.name ?? ""
     }
 
     private var parsedAmount: Decimal? {
@@ -84,12 +98,6 @@ struct TransactionSheet: View {
                 guard saveID != nil else { return }
                 await save()
             }
-            .task(id: selectedAccountID) {
-                guard let accountRepository else { return }
-                if let account = await accountRepository.find(id: selectedAccountID) {
-                    accountName = account.name
-                }
-            }
             .task {
                 #if DEBUG
                 switch mode {
@@ -99,17 +107,14 @@ struct TransactionSheet: View {
                     print("navigation \(Self.self) accountID=\(accountID) transactionID=\(transactionID)")
                 }
                 #endif
-                guard case .edit(let transactionID) = mode else { return }
-                guard let transactionRepository else { return }
-                if let transaction = await transactionRepository.find(id: transactionID) {
-                    let formatter = NumberFormatter()
-                    formatter.locale = .current
-                    formatter.numberStyle = .decimal
-                    amountText = formatter.string(from: NSDecimalNumber(decimal: abs(transaction.amount))) ?? ""
-                    isOutflow = transaction.amount < 0
-                    date = Transaction.date(from: transaction.date)
-                    notes = transaction.notes
-                }
+                guard case .edit = mode, let transaction = transactions.first else { return }
+                let formatter = NumberFormatter()
+                formatter.locale = .current
+                formatter.numberStyle = .decimal
+                amountText = formatter.string(from: NSDecimalNumber(decimal: abs(transaction.amount))) ?? ""
+                isOutflow = transaction.amount < 0
+                date = Transaction.date(from: transaction.unpackedDate)
+                notes = transaction.notes
             }
         }
     }

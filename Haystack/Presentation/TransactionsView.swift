@@ -13,7 +13,6 @@ struct TransactionsView: View {
 
     init(accountID: UUID) {
         self.accountID = accountID
-        let accountID = accountID
         _accounts = Query(
             filter: #Predicate<AccountRecord> { $0.id == accountID }
         )

@@ -1,12 +1,13 @@
+import SwiftData
 import SwiftUI
 
 struct EditAccountSheet: View {
     @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(\.accountRepository) private var accountRepository
-    @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
 
     private let accountID: UUID
+    @Query private var accounts: [AccountRecord]
+    @Query private var transactions: [TransactionRecord]
     @State private var isClosed = false
     @State private var balance: Decimal = 0
     @State private var name = ""
@@ -17,6 +18,16 @@ struct EditAccountSheet: View {
 
     init(accountID: UUID) {
         self.accountID = accountID
+        _accounts = Query(
+            filter: #Predicate<AccountRecord> {
+                $0.id == accountID && $0.deletedAt == nil
+            }
+        )
+        _transactions = Query(
+            filter: #Predicate<TransactionRecord> {
+                $0.accountID == accountID && $0.deletedAt == nil
+            }
+        )
     }
 
     private var parsedBalance: Decimal? {
@@ -74,15 +85,16 @@ struct EditAccountSheet: View {
                 #if DEBUG
                 print("navigation \(Self.self) accountID=\(accountID)")
                 #endif
-                guard let accountRepository, let transactionRepository else { return }
-                guard let account = await accountRepository.find(id: accountID) else {
+                guard let account = accounts.first else {
                     dismiss()
                     return
                 }
                 name = account.name
                 notes = account.notes
                 isClosed = account.isClosed
-                let current = account.balance(await transactionRepository.find(accountID: accountID))
+                let current = transactions.reduce(into: 0 as Decimal) { total, transaction in
+                    total += transaction.amount
+                }
                 balance = current
                 balanceText = current.formatted(.number)
             }
