@@ -8,13 +8,14 @@ struct AddAccount {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    @discardableResult
     @Transactional
     func execute(
         name: String,
         type: AccountType,
         notes: String = "",
-        balance: Decimal
-    ) async throws {
+        balance: Decimal = 0
+    ) async throws -> Account {
         let account = try Account(name: name, type: type, notes: notes)
         try await store.accounts.save(account)
         if balance != 0 {
@@ -26,5 +27,6 @@ struct AddAccount {
             )
             try await store.transactions.save(transaction)
         }
+        return account
     }
 }
