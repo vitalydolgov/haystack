@@ -6,21 +6,16 @@ struct EditAccountSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private let accountID: UUID
-    private let isClosed: Bool
-    private let balance: Decimal
-    @State private var name: String
-    @State private var notes: String
-    @State private var balanceText: String
+    @State private var isClosed = false
+    @State private var balance: Decimal = 0
+    @State private var name = ""
+    @State private var notes = ""
+    @State private var balanceText = ""
     @State private var isConfirmingClose = false
     @State private var saveID: UUID?
 
-    init(account: AccountRecord, balance: Decimal) {
-        accountID = account.id
-        isClosed = account.isClosed
-        self.balance = balance
-        _name = State(initialValue: account.name)
-        _notes = State(initialValue: account.notes)
-        _balanceText = State(initialValue: balance.formatted(.number))
+    init(accountID: UUID) {
+        self.accountID = accountID
     }
 
     private var parsedBalance: Decimal? {
@@ -73,6 +68,22 @@ struct EditAccountSheet: View {
             .task(id: saveID) {
                 guard saveID != nil else { return }
                 await save()
+            }
+            .task {
+                #if DEBUG
+                print("navigation \(Self.self) accountID=\(accountID)")
+                #endif
+                guard let accountRepository, let transactionRepository else { return }
+                guard let account = await accountRepository.find(id: accountID) else {
+                    dismiss()
+                    return
+                }
+                name = account.name
+                notes = account.notes
+                isClosed = account.isClosed
+                let current = account.balance(await transactionRepository.find(accountID: accountID))
+                balance = current
+                balanceText = current.formatted(.number)
             }
         }
     }

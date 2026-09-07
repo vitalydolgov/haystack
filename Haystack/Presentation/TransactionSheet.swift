@@ -90,6 +90,14 @@ struct TransactionSheet: View {
                 }
             }
             .task {
+                #if DEBUG
+                switch mode {
+                case .add:
+                    print("navigation \(Self.self) accountID=\(accountID)")
+                case .edit(let transactionID):
+                    print("navigation \(Self.self) accountID=\(accountID) transactionID=\(transactionID)")
+                }
+                #endif
                 guard case .edit(let transactionID) = mode else { return }
                 guard let transactionRepository else { return }
                 if let transaction = await transactionRepository.find(id: transactionID) {
@@ -100,7 +108,6 @@ struct TransactionSheet: View {
                     isOutflow = transaction.amount < 0
                     date = Transaction.date(from: transaction.date)
                     notes = transaction.notes
-//                    selectedAccountID = transaction.accountID
                 }
             }
         }

@@ -2,24 +2,31 @@ import SwiftData
 import SwiftUI
 
 struct TransactionsView: View {
-    let account: AccountRecord
+    let accountID: UUID
+    @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
     @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(Navigator.self) private var navigator
 
     @State private var deletingTransaction: TransactionRecord?
     @State private var deleteID: UUID?
-    @State private var isAddingTransaction = false
-    @State private var editingTransaction: TransactionRecord?
 
-    init(account: AccountRecord) {
-        self.account = account
-        let accountID = account.id
+    init(accountID: UUID) {
+        self.accountID = accountID
+        let accountID = accountID
+        _accounts = Query(
+            filter: #Predicate<AccountRecord> { $0.id == accountID }
+        )
         _transactions = Query(
             filter: #Predicate<TransactionRecord> {
                 $0.accountID == accountID && $0.deletedAt == nil
             },
             sort: [SortDescriptor(\.packedDate, order: .reverse)]
         )
+    }
+
+    private var accountName: String {
+        accounts.first?.name ?? ""
     }
 
     // TODO: fetch currency code
@@ -45,7 +52,9 @@ struct TransactionsView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    editingTransaction = transaction
+                    navigator.present(
+                        .editTransaction(accountID: accountID, transactionID: transaction.id)
+                    )
                 }
                 .swipeActions(edge: .leading) {
                     // TODO: clear/unclear
@@ -76,7 +85,12 @@ struct TransactionsView: View {
             guard let deleteID else { return }
             await delete(id: deleteID)
         }
-        .navigationTitle(account.name)
+        .task {
+            #if DEBUG
+            print("navigation \(Self.self) accountID=\(accountID)")
+            #endif
+        }
+        .navigationTitle(accountName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // TODO: edit account
@@ -86,15 +100,9 @@ struct TransactionsView: View {
             // TODO: hide/show reconciled
             ToolbarItem(placement: .primaryAction) {
                 Button("Add Transaction", systemImage: "plus") {
-                    isAddingTransaction = true
+                    navigator.present(.addTransaction(accountID: accountID))
                 }
             }
-        }
-        .sheet(isPresented: $isAddingTransaction) {
-            TransactionSheet(accountID: account.id, mode: .add)
-        }
-        .sheet(item: $editingTransaction) { transaction in
-            TransactionSheet(accountID: account.id, mode: .edit(transaction.id))
         }
     }
 
@@ -129,9 +137,8 @@ struct TransactionsView: View {
 #Preview {
     let container = try! Persistence.makeContainer(inMemory: true)
     let account = try! Account(name: "Wallet", type: .cash)
-    let record = AccountRecord(account)
     let context = container.mainContext
-    context.insert(record)
+    context.insert(AccountRecord(account))
     context.insert(
         TransactionRecord(
             try! Transaction(
@@ -152,9 +159,10 @@ struct TransactionsView: View {
         )
     )
     try! context.save()
-    return NavigationStack {
-        TransactionsView(account: record)
-    }
+    return HaystackView(
+        navigation: NavigationState(root: .transactions(accountID: account.id))
+    )
     .modelContainer(container)
+    .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
     .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }

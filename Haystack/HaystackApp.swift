@@ -20,7 +20,7 @@ struct HaystackApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AccountsView()
+            HaystackView()
                 .environment(\.accountRepository, accountRepository)
                 .environment(\.transactionRepository, transactionRepository)
         }

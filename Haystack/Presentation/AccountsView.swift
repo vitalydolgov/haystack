@@ -4,6 +4,7 @@ import SwiftUI
 struct AccountsView: View {
     @Environment(\.accountRepository) private var accountRepository
     @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(Navigator.self) private var navigator
     @Query(
         filter: #Predicate<AccountRecord> { $0.deletedAt == nil },
         sort: \AccountRecord.name
@@ -12,8 +13,6 @@ struct AccountsView: View {
     @Query(filter: #Predicate<TransactionRecord> { $0.deletedAt == nil })
     private var transactions: [TransactionRecord]
     @State private var pendingCloseID: UUID?
-    @State private var isAddingAccount = false
-    @State private var accountToEdit: AccountRecord?
 
     private var openAccounts: [AccountRecord] {
         accounts.filter { !$0.isClosed }
@@ -29,48 +28,45 @@ struct AccountsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                if !openAccounts.isEmpty {
-                    Section("Cash") {
-                        ForEach(openAccounts) { account in
-                            accountRow(account)
-                        }
+        List {
+            if !openAccounts.isEmpty {
+                Section("Cash") {
+                    ForEach(openAccounts) { account in
+                        accountRow(account)
                     }
                 }
+            }
 
-                if !closedAccounts.isEmpty {
-                    Section("Closed") {
-                        ForEach(closedAccounts) { account in
-                            accountRow(account)
-                        }
+            if !closedAccounts.isEmpty {
+                Section("Closed") {
+                    ForEach(closedAccounts) { account in
+                        accountRow(account)
                     }
                 }
             }
-            .navigationTitle("Accounts")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add Account", systemImage: "plus") {
-                        isAddingAccount = true
-                    }
+        }
+        .navigationTitle("Accounts")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Add Account", systemImage: "plus") {
+                    navigator.present(.addAccount)
                 }
             }
-            .alert("Close Account", isPresented: isConfirmingClose) {
-                Button("Adjust Balance & Close") {
-                    if let pendingCloseID {
-                        close(id: pendingCloseID)
-                    }
+        }
+        .alert("Close Account", isPresented: isConfirmingClose) {
+            Button("Adjust Balance & Close") {
+                if let pendingCloseID {
+                    close(id: pendingCloseID)
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Before you can close this account, the balance will have to be zeroed out.")
             }
-            .sheet(isPresented: $isAddingAccount) {
-                AddAccountSheet()
-            }
-            .sheet(item: $accountToEdit) { account in
-                EditAccountSheet(account: account, balance: balance(for: account))
-            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Before you can close this account, the balance will have to be zeroed out.")
+        }
+        .task {
+            #if DEBUG
+            print("navigation \(Self.self)")
+            #endif
         }
     }
 
@@ -82,9 +78,7 @@ struct AccountsView: View {
     }
 
     private func accountRow(_ account: AccountRecord) -> some View {
-        NavigationLink {
-            TransactionsView(account: account)
-        } label: {
+        NavigationLink(value: Route.transactions(accountID: account.id)) {
             HStack {
                 Text(account.name)
                 Spacer()
@@ -96,7 +90,7 @@ struct AccountsView: View {
         .foregroundStyle(.primary)
         .contextMenu {
             Button("Edit Account") {
-                accountToEdit = account
+                navigator.present(.editAccount(accountID: account.id))
             }
             if account.isClosed {
                 Button("Reopen Account") {
@@ -143,7 +137,7 @@ struct AccountsView: View {
 
 #Preview {
     let container = try! Persistence.makeContainer(inMemory: true)
-    AccountsView()
+    HaystackView()
         .modelContainer(container)
         .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
         .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
