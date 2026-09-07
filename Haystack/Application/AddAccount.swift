@@ -1,13 +1,9 @@
 import Foundation
 
 struct AddAccount {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
     private let unitOfWork: UnitOfWork
 
-    init(accounts: AccountRepository, transactions: TransactionRepository, unitOfWork: UnitOfWork) {
-        self.accounts = accounts
-        self.transactions = transactions
+    init(unitOfWork: UnitOfWork) {
         self.unitOfWork = unitOfWork
     }
 
@@ -21,19 +17,16 @@ struct AddAccount {
         notes: String = "",
         balance: Decimal = 0,
         on date: Date = .now
-    ) async throws {
-        do {
+    ) async throws -> Account {
+        try await unitOfWork.perform {
             let account = try Account(name: name, type: type, notes: notes)
-            try await accounts.save(account)
+            try await unitOfWork.accounts.save(account)
             if balance != 0 {
-                try await transactions.save(
+                try await unitOfWork.transactions.save(
                     Transaction(accountID: account.id, date: date, amount: balance, type: .adjustment)
                 )
             }
-            try await unitOfWork.commit()
-        } catch {
-            await unitOfWork.rollback()
-            throw error
+            return account
         }
     }
 }

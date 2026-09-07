@@ -2,8 +2,6 @@ import SwiftUI
 
 struct AddAccountSheet: View {
     @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(\.accountRepository) private var accountRepository
-    @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var type: AccountType?
@@ -57,15 +55,11 @@ struct AddAccountSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork, let accountRepository, let transactionRepository, let type else { return }
+        guard let unitOfWork, let type else { return }
         let balance = parsedBalance ?? 0
         guard AddAccount.canExecute(name: name) else { return }
         do {
-            try await AddAccount(
-                accounts: accountRepository,
-                transactions: transactionRepository,
-                unitOfWork: unitOfWork
-            ).execute(
+            _ = try await AddAccount(unitOfWork: unitOfWork).execute(
                 name: name,
                 type: type,
                 balance: balance

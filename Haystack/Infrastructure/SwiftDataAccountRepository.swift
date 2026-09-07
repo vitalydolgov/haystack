@@ -5,12 +5,6 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
     nonisolated let modelContainer: ModelContainer
     nonisolated let modelExecutor: any ModelExecutor
 
-    init(modelContainer: ModelContainer) {
-        self.modelContainer = modelContainer
-        let modelContext = ModelContext(modelContainer)
-        self.modelExecutor = DefaultSerialModelExecutor(modelContext: modelContext)
-    }
-
     init(modelContainer: ModelContainer, modelExecutor: any ModelExecutor) {
         self.modelContainer = modelContainer
         self.modelExecutor = modelExecutor

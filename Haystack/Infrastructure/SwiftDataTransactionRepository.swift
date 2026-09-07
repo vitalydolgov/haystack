@@ -5,10 +5,9 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
     nonisolated let modelContainer: ModelContainer
     nonisolated let modelExecutor: any ModelExecutor
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, modelExecutor: any ModelExecutor) {
         self.modelContainer = modelContainer
-        let modelContext = ModelContext(modelContainer)
-        self.modelExecutor = DefaultSerialModelExecutor(modelContext: modelContext)
+        self.modelExecutor = modelExecutor
     }
 
     func save(_ transaction: Transaction) throws {
@@ -18,7 +17,6 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         } else {
             modelContext.insert(TransactionRecord(transaction))
         }
-        try modelContext.save()
     }
 
     func find(id: UUID) -> Transaction? {
@@ -37,7 +35,6 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
     func delete(_ transaction: DeletedTransaction) throws {
         guard let record = record(id: transaction.id), record.deletedAt == nil else { return }
         record.deletedAt = transaction.deletedAt
-        try modelContext.save()
     }
 
     private func record(id: UUID) -> TransactionRecord? {
