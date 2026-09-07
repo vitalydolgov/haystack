@@ -159,10 +159,15 @@ struct TransactionsView: View {
         )
     )
     try! context.save()
+    let unitOfWork = SwiftDataUnitOfWork(modelContainer: container)
     return HaystackView(
         navigation: NavigationState(root: .transactions(accountID: account.id))
     )
     .modelContainer(container)
-    .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
+    .environment(\.unitOfWork, unitOfWork)
+    .environment(\.accountRepository, SwiftDataAccountRepository(
+        modelContainer: unitOfWork.modelContainer,
+        modelExecutor: unitOfWork.modelExecutor
+    ))
     .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }

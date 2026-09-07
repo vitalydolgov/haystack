@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct HaystackApp: App {
     let container: ModelContainer
+    let unitOfWork: SwiftDataUnitOfWork
     let accountRepository: SwiftDataAccountRepository
     let transactionRepository: SwiftDataTransactionRepository
 
@@ -11,7 +12,11 @@ struct HaystackApp: App {
         do {
             let container = try Persistence.makeContainer()
             self.container = container
-            self.accountRepository = SwiftDataAccountRepository(modelContainer: container)
+            self.unitOfWork = SwiftDataUnitOfWork(modelContainer: container)
+            self.accountRepository = SwiftDataAccountRepository(
+                modelContainer: unitOfWork.modelContainer,
+                modelExecutor: unitOfWork.modelExecutor
+            )
             self.transactionRepository = SwiftDataTransactionRepository(modelContainer: container)
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
@@ -21,6 +26,7 @@ struct HaystackApp: App {
     var body: some Scene {
         WindowGroup {
             HaystackView()
+                .environment(\.unitOfWork, unitOfWork)
                 .environment(\.accountRepository, accountRepository)
                 .environment(\.transactionRepository, transactionRepository)
         }

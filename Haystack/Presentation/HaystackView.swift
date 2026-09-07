@@ -56,9 +56,14 @@ private struct RouteView: View {
 
 #Preview("Accounts") {
     let container = try! Persistence.makeContainer(inMemory: true)
+    let unitOfWork = SwiftDataUnitOfWork(modelContainer: container)
     HaystackView()
         .modelContainer(container)
-        .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
+        .environment(\.unitOfWork, unitOfWork)
+        .environment(\.accountRepository, SwiftDataAccountRepository(
+            modelContainer: unitOfWork.modelContainer,
+            modelExecutor: unitOfWork.modelExecutor
+        ))
         .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }
 
@@ -78,10 +83,15 @@ private struct RouteView: View {
         )
     )
     try! context.save()
+    let unitOfWork = SwiftDataUnitOfWork(modelContainer: container)
     return HaystackView(
         navigation: NavigationState(root: .transactions(accountID: account.id))
     )
     .modelContainer(container)
-    .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
+    .environment(\.unitOfWork, unitOfWork)
+    .environment(\.accountRepository, SwiftDataAccountRepository(
+        modelContainer: unitOfWork.modelContainer,
+        modelExecutor: unitOfWork.modelExecutor
+    ))
     .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }

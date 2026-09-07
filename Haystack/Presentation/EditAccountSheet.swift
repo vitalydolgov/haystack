@@ -96,6 +96,7 @@ struct EditAccountSheet: View {
         guard let accountRepository, let transactionRepository else { return }
         guard EditAccount.canExecute(name: name) else { return }
         do {
+            // TODO: unit of work
             try await EditAccount(accounts: accountRepository, transactions: transactionRepository).execute(
                 id: accountID,
                 name: name,
@@ -119,6 +120,7 @@ struct EditAccountSheet: View {
     private func close() {
         guard let accountRepository, let transactionRepository else { return }
         Task {
+            // TODO: unit of work
             try await CloseAccount(accounts: accountRepository, transactions: transactionRepository)
                 .execute(id: accountID)
             dismiss()
@@ -128,6 +130,7 @@ struct EditAccountSheet: View {
     private func reopen() {
         guard let accountRepository else { return }
         Task {
+            // TODO: unit of work
             try await ReopenAccount(accounts: accountRepository).execute(id: accountID)
             dismiss()
         }
@@ -137,6 +140,7 @@ struct EditAccountSheet: View {
         // TODO: warn about transferring transactions onto another account
         guard let accountRepository else { return }
         Task {
+            // TODO: unit of work
             try await DeleteAccount(accounts: accountRepository).execute(id: accountID)
             dismiss()
         }
