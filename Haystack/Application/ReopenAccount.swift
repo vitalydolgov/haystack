@@ -1,17 +1,15 @@
 import Foundation
+import TransactionalMacro
 
 struct ReopenAccount {
-    private let accounts: AccountRepository
+    let unitOfWork: UnitOfWork
 
-    init(accounts: AccountRepository) {
-        self.accounts = accounts
-    }
-
+    @Transactional
     func execute(id: UUID) async throws {
-        guard var account = await accounts.find(id: id) else {
+        guard var account = await store.accounts.find(id: id) else {
             throw AccountError.notFound
         }
         account.reopen()
-        try await accounts.save(account)
+        try await store.accounts.save(account)
     }
 }

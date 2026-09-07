@@ -1,23 +1,19 @@
 import Foundation
+import TransactionalMacro
 
 struct MoveTransaction {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
-
-    init(accounts: AccountRepository, transactions: TransactionRepository) {
-        self.accounts = accounts
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     static func canExecute(fromAccountID: UUID, toAccountID: UUID) -> Bool {
         fromAccountID != toAccountID
     }
 
+    @Transactional
     func execute(id: UUID, toAccountID: UUID) async throws {
-        guard let transaction = await transactions.find(id: id) else {
+        guard let transaction = await store.transactions.find(id: id) else {
             throw TransactionError.notFound
         }
-        guard let targetAccount = await accounts.find(id: toAccountID) else {
+        guard let targetAccount = await store.accounts.find(id: toAccountID) else {
             throw AccountError.notFound
         }
         guard !targetAccount.isClosed else {
@@ -33,6 +29,6 @@ struct MoveTransaction {
             notes: transaction.notes,
             type: transaction.type
         )
-        try await transactions.save(moved)
+        try await store.transactions.save(moved)
     }
 }

@@ -6,10 +6,11 @@ struct AdjustBalanceTests {
     @Test func persistsNewBalance() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
 
-        try await AdjustBalance(accounts: accounts, transactions: transactions)
+        try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
         let stored = try #require(await accounts.find(id: account.id))
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 25)
@@ -18,10 +19,11 @@ struct AdjustBalanceTests {
     @Test func recordsAnAdjustment() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
 
-        try await AdjustBalance(accounts: accounts, transactions: transactions)
+        try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
 
         let recorded = await transactions.find(accountID: account.id)
@@ -31,11 +33,12 @@ struct AdjustBalanceTests {
     @Test func doesNotRecordAnAdjustmentWhenAlreadyAtTarget() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
         await transactions.save(try Transaction.make(accountID: account.id, amount: 25))
 
-        try await AdjustBalance(accounts: accounts, transactions: transactions)
+        try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
 
         let recorded = await transactions.find(accountID: account.id)
@@ -48,11 +51,12 @@ struct AdjustBalanceTests {
     @Test func failsWhenClosed() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
 
         await #expect(throws: AccountError.closed) {
-            try await AdjustBalance(accounts: accounts, transactions: transactions)
+            try await AdjustBalance(unitOfWork: unitOfWork)
                 .execute(id: account.id, to: 10)
         }
         let stored = try #require(await accounts.find(id: account.id))
@@ -62,8 +66,9 @@ struct AdjustBalanceTests {
     @Test func failsWhenMissing() async {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         await #expect(throws: AccountError.notFound) {
-            try await AdjustBalance(accounts: accounts, transactions: transactions)
+            try await AdjustBalance(unitOfWork: unitOfWork)
                 .execute(id: UUID(), to: 0)
         }
     }
@@ -71,13 +76,14 @@ struct AdjustBalanceTests {
     @Test func failsWhenDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
         let deleted = try account.delete(at: Date(timeIntervalSince1970: 1_700_000_000))
         await accounts.delete(deleted)
 
         await #expect(throws: AccountError.notFound) {
-            try await AdjustBalance(accounts: accounts, transactions: transactions)
+            try await AdjustBalance(unitOfWork: unitOfWork)
                 .execute(id: account.id, to: 10)
         }
     }

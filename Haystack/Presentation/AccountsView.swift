@@ -2,8 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct AccountsView: View {
-    @Environment(\.accountRepository) private var accountRepository
-    @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(\.unitOfWork) private var unitOfWork
     @Environment(Navigator.self) private var navigator
     @Query(
         filter: #Predicate<AccountRecord> { $0.deletedAt == nil },
@@ -120,25 +119,16 @@ struct AccountsView: View {
     }
 
     private func close(id: UUID) {
-        guard let accountRepository, let transactionRepository else { return }
+        guard let unitOfWork else { return }
         Task {
-            try await CloseAccount(accounts: accountRepository, transactions: transactionRepository)
-                .execute(id: id)
+            try await CloseAccount(unitOfWork: unitOfWork).execute(id: id)
         }
     }
 
     private func reopen(id: UUID) {
-        guard let accountRepository else { return }
+        guard let unitOfWork else { return }
         Task {
-            try await ReopenAccount(accounts: accountRepository).execute(id: id)
+            try await ReopenAccount(unitOfWork: unitOfWork).execute(id: id)
         }
     }
-}
-
-#Preview {
-    let container = try! Persistence.makeContainer(inMemory: true)
-    HaystackView()
-        .modelContainer(container)
-        .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
-        .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }

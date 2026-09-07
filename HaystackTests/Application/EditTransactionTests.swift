@@ -6,6 +6,7 @@ struct EditTransactionTests {
     @Test func persistsDateAmountAndNotes() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
         let transaction = try Transaction.make(
@@ -16,7 +17,7 @@ struct EditTransactionTests {
         await transactions.save(transaction)
         let date = Date(timeIntervalSince1970: 1_700_000_000)
 
-        try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+        try await EditTransaction(unitOfWork: unitOfWork).execute(
             id: transaction.id,
             accountID: account.id,
             date: date,
@@ -46,8 +47,9 @@ struct EditTransactionTests {
     @Test func failsWhenMissing() async {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         await #expect(throws: TransactionError.notFound) {
-            try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: UUID(),
                 accountID: UUID(),
                 date: .now,
@@ -59,6 +61,7 @@ struct EditTransactionTests {
     @Test func failsWhenDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
         let transaction = try Transaction.make(accountID: account.id)
@@ -66,7 +69,7 @@ struct EditTransactionTests {
         await transactions.delete(transaction.delete())
 
         await #expect(throws: TransactionError.notFound) {
-            try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 accountID: account.id,
                 date: .now,
@@ -79,6 +82,7 @@ struct EditTransactionTests {
     @Test func failsWhenTheAccountDoesNotMatch() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         let other = try Account.make(name: "Savings")
         await accounts.save(account)
@@ -87,7 +91,7 @@ struct EditTransactionTests {
         await transactions.save(transaction)
 
         await #expect(throws: TransactionError.notFound) {
-            try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 accountID: other.id,
                 date: .now,
@@ -101,12 +105,13 @@ struct EditTransactionTests {
     @Test func failsWhenTheAccountIsMissing() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let accountID = UUID()
         let transaction = try Transaction.make(accountID: accountID)
         await transactions.save(transaction)
 
         await #expect(throws: AccountError.notFound) {
-            try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 accountID: accountID,
                 date: .now,
@@ -118,6 +123,7 @@ struct EditTransactionTests {
     @Test func failsWhenTheAccountIsDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
         let transaction = try Transaction.make(accountID: account.id)
@@ -125,7 +131,7 @@ struct EditTransactionTests {
         await accounts.delete(try account.delete())
 
         await #expect(throws: AccountError.notFound) {
-            try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 accountID: account.id,
                 date: .now,
@@ -137,13 +143,14 @@ struct EditTransactionTests {
     @Test func failsWhenClosed() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
         let transaction = try Transaction.make(accountID: account.id)
         await transactions.save(transaction)
 
         await #expect(throws: AccountError.closed) {
-            try await EditTransaction(accounts: accounts, transactions: transactions).execute(
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
                 accountID: account.id,
                 date: .now,

@@ -1,31 +1,31 @@
 import Foundation
+import TransactionalMacro
 
 struct AddAccount {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
-
-    init(accounts: AccountRepository, transactions: TransactionRepository) {
-        self.accounts = accounts
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     static func canExecute(name: String) -> Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    @discardableResult
+    @Transactional
     func execute(
         name: String,
         type: AccountType,
         notes: String = "",
-        balance: Decimal = 0,
-        on date: Date = .now
+        balance: Decimal = 0
     ) async throws -> Account {
         let account = try Account(name: name, type: type, notes: notes)
-        try await accounts.save(account)
+        try await store.accounts.save(account)
         if balance != 0 {
-            try await transactions.save(
-                Transaction(accountID: account.id, date: date, amount: balance, type: .adjustment)
+            let transaction = try Transaction(
+                accountID: account.id,
+                date: .now,
+                amount: balance,
+                type: .adjustment
             )
+            try await store.transactions.save(transaction)
         }
         return account
     }

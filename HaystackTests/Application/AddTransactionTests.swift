@@ -6,11 +6,12 @@ struct AddTransactionTests {
     @Test func persistsTheTransaction() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
         let date = Date(timeIntervalSince1970: 1_700_000_000)
 
-        let added = try await AddTransaction(accounts: accounts, transactions: transactions).execute(
+        let added = try await AddTransaction(unitOfWork: unitOfWork).execute(
             accountID: account.id,
             date: date,
             amount: -12.5,
@@ -41,8 +42,9 @@ struct AddTransactionTests {
     @Test func failsWhenMissing() async {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         await #expect(throws: AccountError.notFound) {
-            try await AddTransaction(accounts: accounts, transactions: transactions).execute(
+            try await AddTransaction(unitOfWork: unitOfWork).execute(
                 accountID: UUID(),
                 amount: 10
             )
@@ -53,12 +55,13 @@ struct AddTransactionTests {
     @Test func failsWhenDeleted() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
         await accounts.delete(try account.delete())
 
         await #expect(throws: AccountError.notFound) {
-            try await AddTransaction(accounts: accounts, transactions: transactions).execute(
+            try await AddTransaction(unitOfWork: unitOfWork).execute(
                 accountID: account.id,
                 amount: 10
             )
@@ -69,11 +72,12 @@ struct AddTransactionTests {
     @Test func failsWhenClosed() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
         await accounts.save(account)
 
         await #expect(throws: AccountError.closed) {
-            try await AddTransaction(accounts: accounts, transactions: transactions).execute(
+            try await AddTransaction(unitOfWork: unitOfWork).execute(
                 accountID: account.id,
                 amount: 10
             )

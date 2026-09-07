@@ -7,3 +7,7 @@
 project.local.yml
 .derivedData/
 archive/
+
+# Swift Package Manager
+.build
+.swiftpm/

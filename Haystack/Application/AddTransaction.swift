@@ -1,25 +1,21 @@
 import Foundation
+import TransactionalMacro
 
 struct AddTransaction {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
-
-    init(accounts: AccountRepository, transactions: TransactionRepository) {
-        self.accounts = accounts
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     static func canExecute(amount: Decimal) -> Bool {
         amount != 0
     }
 
+    @Transactional
     func execute(
         accountID: UUID,
         date: Date = .now,
         amount: Decimal,
         notes: String = ""
     ) async throws -> Transaction {
-        guard let account = await accounts.find(id: accountID) else {
+        guard let account = await store.accounts.find(id: accountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
@@ -29,7 +25,7 @@ struct AddTransaction {
             amount: amount,
             notes: notes
         )
-        try await transactions.save(transaction)
+        try await store.transactions.save(transaction)
         return transaction
     }
 }

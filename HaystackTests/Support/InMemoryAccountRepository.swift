@@ -27,4 +27,12 @@ actor InMemoryAccountRepository: AccountRepository {
     func all() -> [Account] {
         Array(accounts.values)
     }
+
+    func snapshot() -> ([UUID: Account], [UUID: DeletedAccount]) {
+        (accounts, tombstones)
+    }
+
+    func restore(_ snapshot: ([UUID: Account], [UUID: DeletedAccount])) {
+        (accounts, tombstones) = snapshot
+    }
 }

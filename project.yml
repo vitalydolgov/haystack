@@ -10,12 +10,18 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_APPROACHABLE_CONCURRENCY: YES
+packages:
+  TransactionalMacro:
+    path: Macros
 targets:
   Haystack:
     type: application
     platform: iOS
     sources:
       - Haystack
+    dependencies:
+      - package: TransactionalMacro
+        product: TransactionalMacro
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.haystack

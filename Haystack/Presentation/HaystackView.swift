@@ -53,35 +53,3 @@ private struct RouteView: View {
         }
     }
 }
-
-#Preview("Accounts") {
-    let container = try! Persistence.makeContainer(inMemory: true)
-    HaystackView()
-        .modelContainer(container)
-        .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
-        .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
-}
-
-#Preview("Transactions") {
-    let container = try! Persistence.makeContainer(inMemory: true)
-    let account = try! Account(name: "Wallet", type: .cash)
-    let context = container.mainContext
-    context.insert(AccountRecord(account))
-    context.insert(
-        TransactionRecord(
-            try! Transaction(
-                accountID: account.id,
-                date: (year: 2026, month: 9, day: 1),
-                amount: 10,
-                type: .adjustment
-            )
-        )
-    )
-    try! context.save()
-    return HaystackView(
-        navigation: NavigationState(root: .transactions(accountID: account.id))
-    )
-    .modelContainer(container)
-    .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
-    .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
-}

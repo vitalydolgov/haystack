@@ -5,7 +5,7 @@ struct TransactionsView: View {
     let accountID: UUID
     @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
-    @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(\.unitOfWork) private var unitOfWork
     @Environment(Navigator.self) private var navigator
 
     @State private var deletingTransaction: TransactionRecord?
@@ -114,9 +114,9 @@ struct TransactionsView: View {
     }
 
     private func delete(id: UUID) async {
-        guard let transactionRepository else { return }
+        guard let unitOfWork else { return }
         do {
-            try await DeleteTransaction(transactions: transactionRepository).execute(id: id)
+            try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: id)
         } catch {
             deleteID = nil
         }
@@ -132,37 +132,4 @@ struct TransactionsView: View {
         guard let value = components.date else { return "" }
         return value.formatted(date: .abbreviated, time: .omitted)
     }
-}
-
-#Preview {
-    let container = try! Persistence.makeContainer(inMemory: true)
-    let account = try! Account(name: "Wallet", type: .cash)
-    let context = container.mainContext
-    context.insert(AccountRecord(account))
-    context.insert(
-        TransactionRecord(
-            try! Transaction(
-                accountID: account.id,
-                date: (year: 2026, month: 9, day: 1),
-                amount: 10,
-                type: .adjustment
-            )
-        )
-    )
-    context.insert(
-        TransactionRecord(
-            try! Transaction(
-                accountID: account.id,
-                date: (year: 2026, month: 8, day: 31),
-                amount: -3
-            )
-        )
-    )
-    try! context.save()
-    return HaystackView(
-        navigation: NavigationState(root: .transactions(accountID: account.id))
-    )
-    .modelContainer(container)
-    .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
-    .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }

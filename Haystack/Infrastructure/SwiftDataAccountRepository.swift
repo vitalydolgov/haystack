@@ -5,10 +5,9 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
     nonisolated let modelContainer: ModelContainer
     nonisolated let modelExecutor: any ModelExecutor
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, modelExecutor: any ModelExecutor) {
         self.modelContainer = modelContainer
-        let modelContext = ModelContext(modelContainer)
-        self.modelExecutor = DefaultSerialModelExecutor(modelContext: modelContext)
+        self.modelExecutor = modelExecutor
     }
 
     func save(_ account: Account) throws {
@@ -18,7 +17,6 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
         } else {
             modelContext.insert(AccountRecord(account))
         }
-        try modelContext.save()
     }
 
     func find(id: UUID) -> Account? {
@@ -29,7 +27,6 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
     func delete(_ account: DeletedAccount) throws {
         guard let record = record(id: account.id), record.deletedAt == nil else { return }
         record.deletedAt = account.deletedAt
-        try modelContext.save()
     }
 
     private func record(id: UUID) -> AccountRecord? {
