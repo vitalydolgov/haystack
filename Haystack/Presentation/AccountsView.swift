@@ -136,16 +136,3 @@ struct AccountsView: View {
         }
     }
 }
-
-#Preview {
-    let container = try! Persistence.makeContainer(inMemory: true)
-    let unitOfWork = SwiftDataUnitOfWork(modelContainer: container)
-    HaystackView()
-        .modelContainer(container)
-        .environment(\.unitOfWork, unitOfWork)
-        .environment(\.accountRepository, SwiftDataAccountRepository(
-            modelContainer: unitOfWork.modelContainer,
-            modelExecutor: unitOfWork.modelExecutor
-        ))
-        .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
-}
