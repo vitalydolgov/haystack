@@ -28,6 +28,8 @@ After changing `project.yml`, run `make generate`. Simulator name comes from `.e
 
 ## Testing
 
+Do not write tests during implementation. Tests are a later pass, only when requested.
+
 Each test asserts only the behavior in its name. Do not snapshot every field after an operation unless that is the point of the test.
 
 **Domain.** Exercise types in memory. Cover identity and field invariants, then group remaining tests by operation. Inside each group, put the happy path first.
