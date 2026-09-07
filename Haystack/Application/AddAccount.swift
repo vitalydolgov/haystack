@@ -1,4 +1,5 @@
 import Foundation
+import TransactionalMacro
 
 struct AddAccount {
     let unitOfWork: UnitOfWork
@@ -7,24 +8,23 @@ struct AddAccount {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    @Transactional
     func execute(
         name: String,
         type: AccountType,
         notes: String = "",
         balance: Decimal
     ) async throws {
-        try await unitOfWork.perform { store in
-            let account = try Account(name: name, type: type, notes: notes)
-            try await store.accounts.save(account)
-            if balance != 0 {
-                let transaction = try Transaction(
-                    accountID: account.id,
-                    date: .now,
-                    amount: balance,
-                    type: .adjustment
-                )
-                try await store.transactions.save(transaction)
-            }
+        let account = try Account(name: name, type: type, notes: notes)
+        try await store.accounts.save(account)
+        if balance != 0 {
+            let transaction = try Transaction(
+                accountID: account.id,
+                date: .now,
+                amount: balance,
+                type: .adjustment
+            )
+            try await store.transactions.save(transaction)
         }
     }
 }
