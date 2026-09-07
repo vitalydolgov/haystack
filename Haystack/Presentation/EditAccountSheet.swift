@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct EditAccountSheet: View {
+    @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.accountRepository) private var accountRepository
     @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
@@ -93,11 +94,10 @@ struct EditAccountSheet: View {
     }
 
     private func save() async {
-        guard let accountRepository, let transactionRepository else { return }
+        guard let unitOfWork else { return }
         guard EditAccount.canExecute(name: name) else { return }
         do {
-            // TODO: unit of work
-            try await EditAccount(accounts: accountRepository, transactions: transactionRepository).execute(
+            try await EditAccount(unitOfWork: unitOfWork).execute(
                 id: accountID,
                 name: name,
                 notes: notes,
@@ -118,30 +118,26 @@ struct EditAccountSheet: View {
     }
 
     private func close() {
-        guard let accountRepository, let transactionRepository else { return }
+        guard let unitOfWork else { return }
         Task {
-            // TODO: unit of work
-            try await CloseAccount(accounts: accountRepository, transactions: transactionRepository)
-                .execute(id: accountID)
+            try await CloseAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
         }
     }
 
     private func reopen() {
-        guard let accountRepository else { return }
+        guard let unitOfWork else { return }
         Task {
-            // TODO: unit of work
-            try await ReopenAccount(accounts: accountRepository).execute(id: accountID)
+            try await ReopenAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
         }
     }
 
     private func delete() {
         // TODO: warn about transferring transactions onto another account
-        guard let accountRepository else { return }
+        guard let unitOfWork else { return }
         Task {
-            // TODO: unit of work
-            try await DeleteAccount(accounts: accountRepository).execute(id: accountID)
+            try await DeleteAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
         }
     }

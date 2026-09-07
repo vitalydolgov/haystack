@@ -1,17 +1,15 @@
 import Foundation
 
 struct ReopenAccount {
-    private let accounts: AccountRepository
-
-    init(accounts: AccountRepository) {
-        self.accounts = accounts
-    }
+    let unitOfWork: UnitOfWork
 
     func execute(id: UUID) async throws {
-        guard var account = await accounts.find(id: id) else {
-            throw AccountError.notFound
+        try await unitOfWork.perform { store in
+            guard var account = await store.accounts.find(id: id) else {
+                throw AccountError.notFound
+            }
+            account.reopen()
+            try await store.accounts.save(account)
         }
-        account.reopen()
-        try await accounts.save(account)
     }
 }

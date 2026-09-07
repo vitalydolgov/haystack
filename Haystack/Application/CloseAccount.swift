@@ -1,22 +1,18 @@
 import Foundation
 
 struct CloseAccount {
-    private let accounts: AccountRepository
-    private let transactions: TransactionRepository
-
-    init(accounts: AccountRepository, transactions: TransactionRepository) {
-        self.accounts = accounts
-        self.transactions = transactions
-    }
+    let unitOfWork: UnitOfWork
 
     func execute(id: UUID) async throws {
-        guard var account = await accounts.find(id: id) else {
-            throw AccountError.notFound
+        try await unitOfWork.perform { store in
+            guard var account = await store.accounts.find(id: id) else {
+                throw AccountError.notFound
+            }
+            guard !account.isClosed else { return }
+            try await AdjustBalance(unitOfWork: unitOfWork).execute(id: id, to: 0)
+            let transactions = await store.transactions.find(accountID: id)
+            try account.close(transactions)
+            try await store.accounts.save(account)
         }
-        guard !account.isClosed else { return }
-        let adjustBalance = AdjustBalance(accounts: accounts, transactions: transactions)
-        try await adjustBalance.execute(id: id, to: 0)
-        try account.close(await transactions.find(accountID: id))
-        try await accounts.save(account)
     }
 }

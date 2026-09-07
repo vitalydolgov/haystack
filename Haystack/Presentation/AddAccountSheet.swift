@@ -59,7 +59,7 @@ struct AddAccountSheet: View {
         let balance = parsedBalance ?? 0
         guard AddAccount.canExecute(name: name) else { return }
         do {
-            _ = try await AddAccount(unitOfWork: unitOfWork).execute(
+            try await AddAccount(unitOfWork: unitOfWork).execute(
                 name: name,
                 type: type,
                 balance: balance

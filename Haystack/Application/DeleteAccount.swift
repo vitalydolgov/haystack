@@ -2,17 +2,15 @@ import Foundation
 
 struct DeleteAccount {
     // TODO: purge accounts whose deletedAt is older than the retention window
-    private let accounts: AccountRepository
-
-    init(accounts: AccountRepository) {
-        self.accounts = accounts
-    }
+    let unitOfWork: UnitOfWork
 
     func execute(id: UUID, at date: Date = .now) async throws {
-        guard let account = await accounts.find(id: id) else {
-            throw AccountError.notFound
+        try await unitOfWork.perform { store in
+            guard let account = await store.accounts.find(id: id) else {
+                throw AccountError.notFound
+            }
+            let deleted = try account.delete(at: date)
+            try await store.accounts.delete(deleted)
         }
-        let deleted = try account.delete(at: date)
-        try await accounts.delete(deleted)
     }
 }
