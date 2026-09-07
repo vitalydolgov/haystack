@@ -7,13 +7,12 @@ struct AccountTests {
 
     @Test func sameIDMeansEqual() throws {
         let id = UUID()
-        let left = try Account.make(id: id, name: "Wallet", type: .cash, balance: 10)
+        let left = try Account.make(id: id, name: "Wallet", type: .cash)
         let right = try Account.make(
             id: id,
             name: "Checking",
             type: .debitCard,
-            notes: "changed",
-            balance: 99
+            notes: "changed"
         )
 
         #expect(left == right)
@@ -60,18 +59,29 @@ struct AccountTests {
 
     // MARK: Balance
 
-    @Test func adjustsWhenOpen() throws {
-        var account = try Account.make()
-        try account.adjustBalance(to: 25)
-        #expect(account.balance == 25)
+    @Test func sumsThisAccountsTransactions() throws {
+        let account = try Account.make()
+        let transactions = [
+            try Transaction.make(accountID: account.id, amount: 10),
+            try Transaction.make(accountID: account.id, amount: -3),
+        ]
+
+        #expect(account.balance(transactions) == 7)
     }
 
-    @Test func failsWhenClosed() throws {
-        var account = try Account.make(isClosed: true)
-        #expect(throws: AccountError.closed) {
-            try account.adjustBalance(to: 10)
-        }
-        #expect(account.balance == 0)
+    @Test func isZeroWhenThereAreNoTransactions() throws {
+        let account = try Account.make()
+        #expect(account.balance([]) == 0)
+    }
+
+    @Test func ignoresTransactionsForOtherAccounts() throws {
+        let account = try Account.make()
+        let transactions = [
+            try Transaction.make(accountID: account.id, amount: 10),
+            try Transaction.make(accountID: UUID(), amount: 99),
+        ]
+
+        #expect(account.balance(transactions) == 10)
     }
 
     // MARK: Close
@@ -89,12 +99,13 @@ struct AccountTests {
     }
 
     @Test func failsWhenBalanceIsNonZero() throws {
-        var account = try Account.make(balance: 10)
+        var account = try Account.make()
+        let transactions = [try Transaction.make(accountID: account.id, amount: 10)]
         #expect(throws: AccountError.nonZeroBalance) {
-            try account.close()
+            try account.close(transactions)
         }
         #expect(!account.isClosed)
-        #expect(account.balance == 10)
+        #expect(account.balance(transactions) == 10)
     }
 
     // MARK: Reopen

@@ -3,11 +3,14 @@ import SwiftUI
 
 struct AccountsView: View {
     @Environment(\.accountRepository) private var accountRepository
+    @Environment(\.transactionRepository) private var transactionRepository
     @Query(
         filter: #Predicate<AccountRecord> { $0.deletedAt == nil },
         sort: \AccountRecord.name
     )
     private var accounts: [AccountRecord]
+    @Query(filter: #Predicate<TransactionRecord> { $0.deletedAt == nil })
+    private var transactions: [TransactionRecord]
     @State private var pendingCloseID: UUID?
     @State private var isAddingAccount = false
     @State private var accountToEdit: AccountRecord?
@@ -20,6 +23,7 @@ struct AccountsView: View {
         accounts.filter(\.isClosed)
     }
 
+    // TODO: fetch
     private var currencyCode: String {
         Locale.current.currency?.identifier ?? "USD"
     }
@@ -65,7 +69,7 @@ struct AccountsView: View {
                 AddAccountSheet()
             }
             .sheet(item: $accountToEdit) { account in
-                EditAccountSheet(account: account)
+                EditAccountSheet(account: account, balance: balance(for: account))
             }
         }
     }
@@ -78,18 +82,17 @@ struct AccountsView: View {
     }
 
     private func accountRow(_ account: AccountRecord) -> some View {
-        Button {
-            accountToEdit = account
+        NavigationLink {
+            TransactionsView(account: account)
         } label: {
             HStack {
                 Text(account.name)
                 Spacer()
-                Text(account.balance, format: .currency(code: currencyCode))
+                Text(balance(for: account), format: .currency(code: currencyCode))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
         }
-        .buttonStyle(.plain)
         .foregroundStyle(.primary)
         .contextMenu {
             Button("Edit Account") {
@@ -108,17 +111,25 @@ struct AccountsView: View {
     }
 
     private func requestClose(_ account: AccountRecord) {
-        if account.balance == 0 {
+        if balance(for: account) == 0 {
             close(id: account.id)
         } else {
             pendingCloseID = account.id
         }
     }
 
+    private func balance(for account: AccountRecord) -> Decimal {
+        transactions.reduce(into: 0 as Decimal) { total, transaction in
+            guard transaction.accountID == account.id else { return }
+            total += transaction.amount
+        }
+    }
+
     private func close(id: UUID) {
-        guard let accountRepository else { return }
+        guard let accountRepository, let transactionRepository else { return }
         Task {
-            try await CloseAccount(accounts: accountRepository).execute(id: id)
+            try await CloseAccount(accounts: accountRepository, transactions: transactionRepository)
+                .execute(id: id)
         }
     }
 
@@ -135,4 +146,5 @@ struct AccountsView: View {
     AccountsView()
         .modelContainer(container)
         .environment(\.accountRepository, SwiftDataAccountRepository(modelContainer: container))
+        .environment(\.transactionRepository, SwiftDataTransactionRepository(modelContainer: container))
 }

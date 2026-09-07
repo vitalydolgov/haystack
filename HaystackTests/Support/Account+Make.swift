@@ -7,7 +7,6 @@ extension Account {
         name: String = "Wallet",
         type: AccountType = .cash,
         notes: String = "",
-        balance: Decimal = 0,
         isClosed: Bool = false
     ) throws -> Account {
         try Account(
@@ -15,7 +14,6 @@ extension Account {
             name: name,
             type: type,
             notes: notes,
-            balance: balance,
             isClosed: isClosed
         )
     }
