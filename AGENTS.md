@@ -26,6 +26,14 @@ Use `make` for all project operations. Do not invoke `xcodegen` or `xcodebuild` 
 
 After changing `project.yml`, run `make generate`. Simulator name comes from `.env` (`SIMULATOR`).
 
+## Conventions
+
+### `@Transactional`
+
+A body macro on mutating use-case `execute` methods. It wraps the method body in `unitOfWork.perform { store in ... }`, so the body can use `store` (accounts and transactions repositories) even though `store` is not a parameter.
+
+Do not call `unitOfWork.perform` by hand in use cases. Annotate `execute` with `@Transactional` and write against `store` directly.
+
 ## Testing
 
 Do not write tests during implementation. Tests are a later pass, only when requested.
