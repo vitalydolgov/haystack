@@ -5,7 +5,7 @@ struct TransactionSheet: View {
     enum Mode {
         case add
         case edit(UUID)
-        // TODO: edit transfer
+        case editTransfer(UUID)
     }
 
     @Environment(\.unitOfWork) private var unitOfWork
@@ -15,6 +15,7 @@ struct TransactionSheet: View {
     let mode: Mode
     @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
+    @Query private var counterparts: [TransactionRecord]
     @State private var amountText = ""
     @State private var isOutflow = true
     @State private var date = Date()
@@ -26,18 +27,32 @@ struct TransactionSheet: View {
     init(accountID: UUID, mode: Mode) {
         self.accountID = accountID
         self.mode = mode
-        let transactionID = switch mode {
-        case .add: UUID()
-        case .edit(let id): id
-        }
         _selectedAccountID = State(initialValue: accountID)
         _transferAccountID = State(initialValue: accountID)
         _accounts = Query(filter: #Predicate<AccountRecord> { $0.deletedAt == nil })
-        _transactions = Query(
-            filter: #Predicate<TransactionRecord> {
-                $0.id == transactionID && $0.deletedAt == nil
-            }
-        )
+        switch mode {
+        case .add:
+            _transactions = Query(filter: #Predicate<TransactionRecord> { _ in false })
+            _counterparts = Query(filter: #Predicate<TransactionRecord> { _ in false })
+        case .edit(let transactionID):
+            _transactions = Query(
+                filter: #Predicate<TransactionRecord> {
+                    $0.id == transactionID && $0.deletedAt == nil
+                }
+            )
+            _counterparts = Query(filter: #Predicate<TransactionRecord> { _ in false })
+        case .editTransfer(let transferID):
+            _transactions = Query(
+                filter: #Predicate<TransactionRecord> {
+                    $0.transferID == transferID && $0.accountID == accountID && $0.deletedAt == nil
+                }
+            )
+            _counterparts = Query(
+                filter: #Predicate<TransactionRecord> {
+                    $0.transferID == transferID && $0.accountID != accountID && $0.deletedAt == nil
+                }
+            )
+        }
     }
 
     private var parsedAmount: Decimal? {
@@ -139,24 +154,34 @@ struct TransactionSheet: View {
                     print("navigation \(Self.self) accountID=\(accountID)")
                 case .edit(let transactionID):
                     print("navigation \(Self.self) accountID=\(accountID) transactionID=\(transactionID)")
+                case .editTransfer(let transferID):
+                    print("navigation \(Self.self) accountID=\(accountID) transferID=\(transferID)")
                 }
                 #endif
-                guard case .edit = mode, let transaction = transactions.first else { return }
-                let formatter = NumberFormatter()
-                formatter.locale = .current
-                formatter.numberStyle = .decimal
-                amountText = formatter.string(from: NSDecimalNumber(decimal: abs(transaction.amount))) ?? ""
+                if case .add = mode { return }
+                guard let transaction = transactions.first else { return }
+                amountText = Self.formattedAmount(transaction.amount)
                 isOutflow = transaction.amount < 0
                 date = Transaction.date(from: transaction.unpackedDate)
                 notes = transaction.notes
+                if let counterpart = counterparts.first {
+                    transferAccountID = counterpart.accountID
+                }
             }
         }
+    }
+
+    private static func formattedAmount(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = .current
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSDecimalNumber(decimal: abs(amount))) ?? ""
     }
 
     private var title: String {
         switch mode {
         case .add: "Add Transaction"
-        case .edit: "Edit Transaction"
+        case .edit, .editTransfer: "Edit Transaction"
         }
     }
 
@@ -166,6 +191,8 @@ struct TransactionSheet: View {
             AddTransaction.canExecute(amount: signedAmount)
         case .edit:
             EditTransaction.canExecute(amount: signedAmount)
+        case .editTransfer:
+            true
         }
     }
 
@@ -208,6 +235,8 @@ struct TransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
+            case .editTransfer:
+                fatalError()
             }
             dismiss()
         } catch {
