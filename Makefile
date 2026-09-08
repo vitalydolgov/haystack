@@ -8,6 +8,7 @@ CONFIGURATION ?= Debug
 DERIVED_DATA := $(CURDIR)/.derivedData
 APP_PATH     := $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)-iphonesimulator/$(SCHEME).app
 ARCHIVE_PATH := $(CURDIR)/archive/Haystack.xcarchive
+ONLY ?=
 
 .PHONY: generate build launch test archive clean purge
 
@@ -36,6 +37,7 @@ test: generate
 		-configuration $(CONFIGURATION) \
 		-destination '$(DESTINATION)' \
 		-derivedDataPath $(DERIVED_DATA) \
+		$(if $(ONLY),-only-testing:HaystackTests/$(ONLY),) \
 		test
 
 archive: generate

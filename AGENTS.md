@@ -19,6 +19,7 @@ Use `make` for all project operations. Do not invoke `xcodegen` or `xcodebuild` 
 | `make generate` | Regenerates `Haystack.xcodeproj` from `project.yml` |
 | `make build` | Debug simulator build |
 | `make test` | Run tests on the simulator |
+| `make test ONLY=<SuiteName>` | Run a single test suite |
 | `make launch` | Build, install, and launch on the simulator |
 | `make purge` | Uninstalls the app from the simulator, dropping its data |
 | `make archive` | Release device archive |
