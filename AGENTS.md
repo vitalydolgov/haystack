@@ -55,3 +55,9 @@ Exceptions:
 - **Public interfaces**: document public types, methods, properties, and other API surface that callers outside the defining module need to understand.
 - **`TODO:` placeholders** for work deferred to a later phase. Prefer a `TODO` over generating the full implementation when the current phase does not need it.
 - **Tests**: `// MARK:` as described in Testing.
+
+## Repository
+
+- Conventional commit prefixes (feat, fix, test, refactor, perf, style, docs, build).
+- Subject-only: omit body and footer unless explaining a breaking change or complex rationale.
+- No period at the end of the subject.
