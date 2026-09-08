@@ -78,6 +78,14 @@ struct TransactionSheet: View {
         selectedAccountID != transferAccountID
     }
 
+    private var isConversion: Bool {
+        switch mode {
+        case .add: false
+        case .edit: isTransfer
+        case .editTransfer: !isTransfer
+        }
+    }
+
     private var signedAmount: Decimal {
         let amount = abs(parsedAmount ?? 0)
         return isOutflow ? -amount : amount
@@ -208,9 +216,11 @@ struct TransactionSheet: View {
         switch mode {
         case .add:
             AddTransaction.canExecute(amount: signedAmount)
+        case .edit where isConversion:
+            ConvertTransactionToTransfer.canExecute(amount: signedAmount)
         case .edit:
             EditTransaction.canExecute(amount: signedAmount)
-        case .editTransfer where !isTransfer:
+        case .editTransfer where isConversion:
             ConvertTransferToTransaction.canExecute(amount: signedAmount)
         case .editTransfer:
             true
@@ -239,7 +249,20 @@ struct TransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
-            // TODO: convert transaction to transfer
+            case .edit where isConversion && isMove:
+                // TODO: convert transaction to transfer with move
+                fatalError()
+            case .edit(let transactionID) where isConversion:
+                guard ConvertTransactionToTransfer.canExecute(amount: signedAmount) else { return }
+                let convertTransaction = ConvertTransactionToTransfer(unitOfWork: unitOfWork)
+                try await convertTransaction.execute(
+                    id: transactionID,
+                    accountID: accountID,
+                    transferAccountID: transferAccountID,
+                    date: date,
+                    amount: signedAmount,
+                    notes: notes
+                )
             case .edit(let transactionID) where isMove:
                 guard MoveTransaction.canExecute(fromAccountID: accountID, toAccountID: selectedAccountID) else { return }
                 let moveTransaction = MoveTransaction(unitOfWork: unitOfWork)
@@ -257,7 +280,7 @@ struct TransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
-            case .editTransfer(let transferID) where !isTransfer:
+            case .editTransfer(let transferID) where isConversion:
                 guard ConvertTransferToTransaction.canExecute(amount: signedAmount) else { return }
                 let convertTransfer = ConvertTransferToTransaction(unitOfWork: unitOfWork)
                 try await convertTransfer.execute(
