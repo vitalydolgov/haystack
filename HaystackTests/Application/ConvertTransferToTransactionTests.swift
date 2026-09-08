@@ -32,7 +32,7 @@ struct ConvertTransferToTransactionTests {
 
         try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
             transferID: transferID,
-            accountID: fromAccount.id,
+            keeping: fromAccount.id,
             date: date,
             amount: -20,
             notes: "Coffee"
@@ -77,7 +77,7 @@ struct ConvertTransferToTransactionTests {
 
         try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
             transferID: transferID,
-            accountID: toAccount.id,
+            keeping: toAccount.id,
             date: Date(timeIntervalSince1970: 1_700_000_000),
             amount: 12.5
         )
@@ -87,6 +87,46 @@ struct ConvertTransferToTransactionTests {
         #expect(stored.type == .standard)
         #expect(stored.transferID == nil)
         #expect(await transactions.find(id: fromLeg.id) == nil)
+    }
+
+    @Test func movesKeptLegWhenAccountDiffers() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let fromAccount = try Account.make(name: "Wallet")
+        let toAccount = try Account.make(name: "Savings", type: .savings)
+        let targetAccount = try Account.make(name: "Checking", type: .debitCard)
+        await accounts.save(fromAccount)
+        await accounts.save(toAccount)
+        await accounts.save(targetAccount)
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            accountID: fromAccount.id,
+            amount: -12.5,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            accountID: toAccount.id,
+            amount: 12.5,
+            type: .transfer,
+            transferID: transferID
+        )
+        await transactions.save(fromLeg)
+        await transactions.save(toLeg)
+
+        try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
+            transferID: transferID,
+            keeping: fromAccount.id,
+            movingTo: targetAccount.id,
+            date: Date(timeIntervalSince1970: 1_700_000_000),
+            amount: -12.5
+        )
+
+        let stored = try #require(await transactions.find(id: fromLeg.id))
+        #expect(stored.accountID == targetAccount.id)
+        #expect(stored.type == .standard)
+        #expect(await transactions.find(id: toLeg.id) == nil)
     }
 
     // MARK: Errors
@@ -99,7 +139,7 @@ struct ConvertTransferToTransactionTests {
         await #expect(throws: TransferError.notFound) {
             try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
                 transferID: UUID(),
-                accountID: UUID(),
+                keeping: UUID(),
                 date: Date(timeIntervalSince1970: 1_700_000_000),
                 amount: 10
             )
@@ -121,7 +161,7 @@ struct ConvertTransferToTransactionTests {
         await #expect(throws: TransactionError.notFound) {
             try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
                 transferID: transferID,
-                accountID: other.id,
+                keeping: other.id,
                 date: Date(timeIntervalSince1970: 1_700_000_000),
                 amount: 10
             )
@@ -149,7 +189,7 @@ struct ConvertTransferToTransactionTests {
         await #expect(throws: AccountError.notFound) {
             try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
                 transferID: transferID,
-                accountID: accountID,
+                keeping: accountID,
                 date: Date(timeIntervalSince1970: 1_700_000_000),
                 amount: -10
             )
@@ -177,7 +217,7 @@ struct ConvertTransferToTransactionTests {
         await #expect(throws: AccountError.closed) {
             try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
                 transferID: transferID,
-                accountID: account.id,
+                keeping: account.id,
                 date: Date(timeIntervalSince1970: 1_700_000_000),
                 amount: -10
             )

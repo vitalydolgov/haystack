@@ -12,27 +12,26 @@ struct ConvertTransactionToTransfer {
     func execute(
         id: UUID,
         accountID: UUID,
-        transferAccountID: UUID,
+        counterpartAccountID: UUID,
         date: Date,
         amount: Decimal,
         notes: String = ""
     ) async throws {
-        guard accountID != transferAccountID else {
+        guard accountID != counterpartAccountID else {
             throw TransferError.sameAccount
         }
         guard let existing = await store.transactions.find(id: id),
-              existing.accountID == accountID,
               existing.type == .standard else {
             throw TransactionError.notFound
         }
         guard let account = await store.accounts.find(id: accountID) else {
             throw AccountError.notFound
         }
-        guard let transferAccount = await store.accounts.find(id: transferAccountID) else {
+        guard let counterpartAccount = await store.accounts.find(id: counterpartAccountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
-        guard !transferAccount.isClosed else { throw AccountError.closed }
+        guard !counterpartAccount.isClosed else { throw AccountError.closed }
         let transferID = UUID()
         let converted = try Transaction(
             id: existing.id,
@@ -44,7 +43,7 @@ struct ConvertTransactionToTransfer {
             transferID: transferID
         )
         let counterpart = try Transaction(
-            accountID: transferAccountID,
+            accountID: counterpartAccountID,
             date: date.asYearMonthDay(),
             amount: -amount,
             notes: notes,
