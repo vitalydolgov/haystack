@@ -1,7 +1,7 @@
 import Foundation
 import TransactionalMacro
 
-struct CreateTransfer {
+struct AddTransfer {
     let unitOfWork: UnitOfWork
 
     @Transactional

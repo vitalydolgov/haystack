@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Haystack
 
-struct CreateTransferTests {
+struct AddTransferTests {
     @Test func createsTwoTransferLegs() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
@@ -13,7 +13,7 @@ struct CreateTransferTests {
         await accounts.save(toAccount)
         let date = Date(timeIntervalSince1970: 1_700_000_000)
 
-        let (fromLeg, toLeg) = try await CreateTransfer(unitOfWork: unitOfWork).execute(
+        let (fromLeg, toLeg) = try await AddTransfer(unitOfWork: unitOfWork).execute(
             fromAccountID: fromAccount.id,
             toAccountID: toAccount.id,
             date: date,
@@ -47,7 +47,7 @@ struct CreateTransferTests {
         await accounts.save(account)
 
         await #expect(throws: TransferError.sameAccount) {
-            try await CreateTransfer(unitOfWork: unitOfWork).execute(
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: account.id,
                 toAccountID: account.id,
                 amount: 10
@@ -64,7 +64,7 @@ struct CreateTransferTests {
         await accounts.save(toAccount)
 
         await #expect(throws: AccountError.notFound) {
-            try await CreateTransfer(unitOfWork: unitOfWork).execute(
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: UUID(),
                 toAccountID: toAccount.id,
                 amount: 10
@@ -81,7 +81,7 @@ struct CreateTransferTests {
         await accounts.save(fromAccount)
 
         await #expect(throws: AccountError.notFound) {
-            try await CreateTransfer(unitOfWork: unitOfWork).execute(
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: fromAccount.id,
                 toAccountID: UUID(),
                 amount: 10
@@ -100,7 +100,7 @@ struct CreateTransferTests {
         await accounts.save(toAccount)
 
         await #expect(throws: AccountError.closed) {
-            try await CreateTransfer(unitOfWork: unitOfWork).execute(
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: fromAccount.id,
                 toAccountID: toAccount.id,
                 amount: 10
@@ -119,7 +119,7 @@ struct CreateTransferTests {
         await accounts.save(toAccount)
 
         await #expect(throws: AccountError.closed) {
-            try await CreateTransfer(unitOfWork: unitOfWork).execute(
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: fromAccount.id,
                 toAccountID: toAccount.id,
                 amount: 10
