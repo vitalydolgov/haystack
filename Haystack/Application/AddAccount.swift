@@ -21,7 +21,7 @@ struct AddAccount {
         if balance != 0 {
             let transaction = try Transaction(
                 accountID: account.id,
-                date: .now,
+                date: Date.now.asYearMonthDay(),
                 amount: balance,
                 type: .adjustment
             )

@@ -37,6 +37,18 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         record.deletedAt = transaction.deletedAt
     }
 
+    func findTransfer(id: UUID) async -> (Transaction, Transaction)? {
+        guard let record = record(id: id), record.deletedAt == nil else { return nil }
+        guard let transferID = record.transferID else { return nil }
+        let descriptor = FetchDescriptor<TransactionRecord>(
+            predicate: #Predicate { $0.transferID == transferID && $0.deletedAt == nil }
+        )
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        let transactions = records.compactMap { try? $0.toTransaction() }
+        guard transactions.count == 2 else { return nil }
+        return (transactions[0], transactions[1])
+    }
+
     private func record(id: UUID) -> TransactionRecord? {
         var descriptor = FetchDescriptor<TransactionRecord>(
             predicate: #Predicate { $0.id == id }

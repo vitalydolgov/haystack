@@ -24,7 +24,7 @@ struct MoveTransaction {
         let moved = try Transaction(
             id: transaction.id,
             accountID: toAccountID,
-            date: Transaction.date(from: transaction.date),
+            date: transaction.date,
             amount: transaction.amount,
             notes: transaction.notes,
             type: transaction.type
@@ -32,3 +32,4 @@ struct MoveTransaction {
         try await store.transactions.save(moved)
     }
 }
+// TODO: guard against .transfer transactions

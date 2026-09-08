@@ -15,7 +15,7 @@ struct AdjustBalance {
         guard delta != 0 else { return }
         let transaction = try Transaction(
             accountID: id,
-            date: date,
+            date: date.asYearMonthDay(),
             amount: delta,
             type: .adjustment
         )

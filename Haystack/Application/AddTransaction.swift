@@ -21,7 +21,7 @@ struct AddTransaction {
         guard !account.isClosed else { throw AccountError.closed }
         let transaction = try Transaction(
             accountID: accountID,
-            date: date,
+            date: date.asYearMonthDay(),
             amount: amount,
             notes: notes
         )

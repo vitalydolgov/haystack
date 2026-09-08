@@ -12,3 +12,4 @@ struct DeleteTransaction {
         try await store.transactions.delete(transaction.delete(at: date))
     }
 }
+// TODO: guard against .transfer transactions

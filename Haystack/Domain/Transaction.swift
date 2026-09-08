@@ -3,6 +3,12 @@ import Foundation
 enum TransactionType: String, Codable, Sendable, Equatable, CaseIterable {
     case standard
     case adjustment
+    case transfer
+}
+
+enum TransferError: Error, Equatable, Sendable {
+    case sameAccount
+    case notFound
 }
 
 enum TransactionError: Error, Equatable, Sendable {
@@ -14,6 +20,7 @@ struct Transaction: Identifiable, Equatable, Sendable {
     let id: UUID
     let accountID: UUID
     let type: TransactionType
+    let transferID: UUID?
     private(set) var date: (year: Int, month: Int, day: Int)
     private(set) var amount: Decimal
     private(set) var notes: String
@@ -24,33 +31,16 @@ struct Transaction: Identifiable, Equatable, Sendable {
         date: (year: Int, month: Int, day: Int),
         amount: Decimal,
         notes: String = "",
-        type: TransactionType = .standard
+        type: TransactionType = .standard,
+        transferID: UUID? = nil
     ) throws {
         self.id = id
         self.accountID = accountID
-        self.type = type
         self.date = try Self.validatedDate(date)
         self.amount = amount
         self.notes = notes
-    }
-
-    init(
-        id: UUID = UUID(),
-        accountID: UUID,
-        date: Date,
-        amount: Decimal,
-        notes: String = "",
-        type: TransactionType = .standard
-    ) throws {
-        let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
-        try self.init(
-            id: id,
-            accountID: accountID,
-            date: (year: components.year!, month: components.month!, day: components.day!),
-            amount: amount,
-            notes: notes,
-            type: type
-        )
+        self.type = type
+        self.transferID = transferID
     }
 
     mutating func update(
@@ -96,4 +86,11 @@ struct Transaction: Identifiable, Equatable, Sendable {
 struct DeletedTransaction: Identifiable, Equatable, Sendable {
     let id: UUID
     let deletedAt: Date
+}
+
+extension Date {
+    func asYearMonthDay() -> (year: Int, month: Int, day: Int) {
+        let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: self)
+        return (components.year!, components.month!, components.day!)
+    }
 }

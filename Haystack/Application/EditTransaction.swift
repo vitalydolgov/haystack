@@ -40,3 +40,4 @@ struct EditTransaction {
         return (year: c.year!, month: c.month!, day: c.day!)
     }
 }
+// TODO: guard against .transfer transactions
