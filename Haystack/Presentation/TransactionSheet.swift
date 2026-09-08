@@ -5,6 +5,7 @@ struct TransactionSheet: View {
     enum Mode {
         case add
         case edit(UUID)
+        // TODO: edit transfer
     }
 
     @Environment(\.unitOfWork) private var unitOfWork
@@ -20,6 +21,7 @@ struct TransactionSheet: View {
     @State private var notes = ""
     @State private var saveID: UUID?
     @State private var selectedAccountID: UUID
+    @State private var transferAccountID: UUID
 
     init(accountID: UUID, mode: Mode) {
         self.accountID = accountID
@@ -29,6 +31,7 @@ struct TransactionSheet: View {
         case .edit(let id): id
         }
         _selectedAccountID = State(initialValue: accountID)
+        _transferAccountID = State(initialValue: accountID)
         _accounts = Query(filter: #Predicate<AccountRecord> { $0.deletedAt == nil })
         _transactions = Query(
             filter: #Predicate<TransactionRecord> {
@@ -37,14 +40,18 @@ struct TransactionSheet: View {
         )
     }
 
-    private var accountName: String {
-        accounts.first { $0.id == selectedAccountID }?.name ?? ""
-    }
-
     private var parsedAmount: Decimal? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return Decimal(string: trimmed, locale: .current)
+    }
+
+    private var isMove: Bool {
+        selectedAccountID != accountID
+    }
+
+    private var isTransfer: Bool {
+        selectedAccountID != transferAccountID
     }
 
     private var signedAmount: Decimal {
@@ -64,19 +71,46 @@ struct TransactionSheet: View {
                     Text("Outflow").tag(true)
                     Text("Inflow").tag(false)
                 }
-                .pickerStyle(.segmented)
                 // TODO: payee
                 NavigationLink {
                     // TODO: show as sheet
                     AccountPicker(selectedID: $selectedAccountID)
                 } label: {
-                    Text(accountName.isEmpty ? "Account" : accountName)
+                    HStack {
+                        Text("Account")
+                        Spacer()
+                        Text(accounts.first { $0.id == selectedAccountID }?.name ?? "None")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                NavigationLink {
+                    AccountPicker(selectedID: $transferAccountID)
+                } label: {
+                    HStack {
+                        Text("Transfer")
+                        Spacer()
+                        Group {
+                            if isTransfer, let transferAccount = accounts.first(where: { $0.id == transferAccountID }) {
+                                Text("\(isOutflow ? "To" : "From"): \(transferAccount.name)")
+                            } else {
+                                Text("None")
+                            }
+                        }
+                        .foregroundColor(.secondary)
+                    }
                 }
                 DatePicker("Date", selection: $date, in: Date.distantPast...Date(), displayedComponents: .date)
                     .datePickerStyle(.compact)
                 // TODO: allow scheduling in the future
                 Section {
                     // TODO: memo
+                }
+            }
+            .onChange(of: selectedAccountID) { oldValue, newValue in
+                if transferAccountID == oldValue {
+                    transferAccountID = newValue
+                } else if newValue == transferAccountID {
+                    transferAccountID = oldValue
                 }
             }
             .navigationTitle(title)
@@ -139,6 +173,15 @@ struct TransactionSheet: View {
         guard let unitOfWork else { return }
         do {
             switch mode {
+            case .add where isTransfer:
+                let addTransfer = AddTransfer(unitOfWork: unitOfWork)
+                _ = try await addTransfer.execute(
+                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
+                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    date: date,
+                    amount: abs(signedAmount),
+                    notes: notes
+                )
             case .add:
                 guard AddTransaction.canExecute(amount: signedAmount) else { return }
                 let addTransaction = AddTransaction(unitOfWork: unitOfWork)
@@ -148,7 +191,7 @@ struct TransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
-            case .edit(let transactionID) where selectedAccountID != accountID:
+            case .edit(let transactionID) where isMove:
                 guard MoveTransaction.canExecute(fromAccountID: accountID, toAccountID: selectedAccountID) else { return }
                 let moveTransaction = MoveTransaction(unitOfWork: unitOfWork)
                 try await moveTransaction.execute(

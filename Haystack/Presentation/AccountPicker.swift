@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+// TODO: make "None" option
 struct AccountPicker: View {
     @Query(filter: #Predicate<AccountRecord> { $0.deletedAt == nil && !$0.isClosed }, sort: \AccountRecord.name)
     private var accounts: [AccountRecord]
