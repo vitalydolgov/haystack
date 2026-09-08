@@ -8,7 +8,8 @@ extension Transaction {
         date: (year: Int, month: Int, day: Int) = (year: 2026, month: 8, day: 31),
         amount: Decimal = 10,
         notes: String = "",
-        type: TransactionType = .standard
+        type: TransactionType = .standard,
+        transferID: UUID? = nil
     ) throws -> Transaction {
         try Transaction(
             id: id,
@@ -16,7 +17,8 @@ extension Transaction {
             date: date,
             amount: amount,
             notes: notes,
-            type: type
+            type: type,
+            transferID: transferID
         )
     }
 }
