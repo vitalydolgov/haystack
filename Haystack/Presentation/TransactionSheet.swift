@@ -2,17 +2,18 @@ import SwiftData
 import SwiftUI
 
 struct TransactionSheet: View {
+    @Environment(\.unitOfWork) private var unitOfWork
+    @Environment(\.dismiss) private var dismiss
+
+    let accountID: UUID
+
     enum Mode {
         case add
         case edit(UUID)
         case editTransfer(UUID)
     }
-
-    @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(\.dismiss) private var dismiss
-
-    let accountID: UUID
     let mode: Mode
+
     @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
     @Query private var counterparts: [TransactionRecord]
@@ -23,6 +24,14 @@ struct TransactionSheet: View {
     @State private var saveID: UUID?
     @State private var selectedAccountID: UUID
     @State private var transferAccountID: UUID
+
+    enum PickerField: Identifiable {
+        case account
+        case transfer
+
+        var id: Self { self }
+    }
+    @State private var picker: PickerField?
 
     init(accountID: UUID, mode: Mode) {
         self.accountID = accountID
@@ -87,9 +96,8 @@ struct TransactionSheet: View {
                     Text("Inflow").tag(false)
                 }
                 // TODO: payee
-                NavigationLink {
-                    // TODO: show as sheet
-                    AccountPicker(selectedID: $selectedAccountID)
+                Button {
+                    picker = .account
                 } label: {
                     HStack {
                         Text("Account")
@@ -98,8 +106,10 @@ struct TransactionSheet: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                NavigationLink {
-                    AccountPicker(selectedID: $transferAccountID)
+                .buttonStyle(.plain)
+                // TODO: allow clearing the transfer account (None)
+                Button {
+                    picker = .transfer
                 } label: {
                     HStack {
                         Text("Transfer")
@@ -114,11 +124,20 @@ struct TransactionSheet: View {
                         .foregroundColor(.secondary)
                     }
                 }
+                .buttonStyle(.plain)
                 DatePicker("Date", selection: $date, in: Date.distantPast...Date(), displayedComponents: .date)
                     .datePickerStyle(.compact)
                 // TODO: allow scheduling in the future
                 Section {
                     // TODO: memo
+                }
+            }
+            .sheet(item: $picker) { field in
+                switch field {
+                case .account:
+                    AccountPicker(selectedID: $selectedAccountID)
+                case .transfer:
+                    AccountPicker(selectedID: $transferAccountID)
                 }
             }
             .onChange(of: selectedAccountID) { oldValue, newValue in
@@ -191,6 +210,8 @@ struct TransactionSheet: View {
             AddTransaction.canExecute(amount: signedAmount)
         case .edit:
             EditTransaction.canExecute(amount: signedAmount)
+        case .editTransfer where !isTransfer:
+            ConvertTransferToTransaction.canExecute(amount: signedAmount)
         case .editTransfer:
             true
         }
@@ -218,6 +239,7 @@ struct TransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
+            // TODO: convert transaction to transfer
             case .edit(let transactionID) where isMove:
                 guard MoveTransaction.canExecute(fromAccountID: accountID, toAccountID: selectedAccountID) else { return }
                 let moveTransaction = MoveTransaction(unitOfWork: unitOfWork)
@@ -235,7 +257,19 @@ struct TransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
+            case .editTransfer(let transferID) where !isTransfer:
+                guard ConvertTransferToTransaction.canExecute(amount: signedAmount) else { return }
+                let convertTransfer = ConvertTransferToTransaction(unitOfWork: unitOfWork)
+                try await convertTransfer.execute(
+                    transferID: transferID,
+                    accountID: accountID,
+                    date: date,
+                    amount: signedAmount,
+                    notes: notes
+                )
             case .editTransfer:
+                // TODO: edit transfer in place
+                // TODO: edit transfer with move
                 fatalError()
             }
             dismiss()
