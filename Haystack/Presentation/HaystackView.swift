@@ -34,11 +34,11 @@ private struct HaystackNavigation: View {
         case .editAccount(let accountID):
             EditAccountSheet(accountID: accountID)
         case .addTransaction(let accountID):
-            TransactionSheet(accountID: accountID, mode: .add)
+            AddTransactionSheet(accountID: accountID)
         case .editTransaction(let accountID, let transactionID):
-            TransactionSheet(accountID: accountID, mode: .edit(transactionID))
+            EditTransactionSheet(accountID: accountID, mode: .plain(transactionID))
         case .editTransfer(let accountID, let transferID):
-            TransactionSheet(accountID: accountID, mode: .editTransfer(transferID))
+            EditTransactionSheet(accountID: accountID, mode: .transfer(transferID))
         }
     }
 }
