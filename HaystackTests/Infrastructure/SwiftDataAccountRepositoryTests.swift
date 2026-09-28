@@ -16,7 +16,7 @@ struct SwiftDataAccountRepositoryTests {
         )
         try await writer.save(account)
 
-        let stored = try #require(await reader(container).find(id: account.id))
+        let stored = try #require(try await reader(container).query(id: account.id))
         #expect(stored.id == account.id)
         #expect(stored.name == "Wallet")
         #expect(stored.type == .debitCard)
@@ -34,7 +34,7 @@ struct SwiftDataAccountRepositoryTests {
         account.notes = "On hand"
         try await writer.save(account)
 
-        let stored = try #require(await reader(container).find(id: account.id))
+        let stored = try #require(try await reader(container).query(id: account.id))
         #expect(stored.name == "Cash")
         #expect(stored.type == .cash)
         #expect(stored.notes == "On hand")
@@ -47,8 +47,8 @@ struct SwiftDataAccountRepositoryTests {
         try await accounts.save(wallet)
         try await accounts.save(checking)
 
-        #expect(await accounts.find(id: wallet.id)?.name == "Wallet")
-        #expect(await accounts.find(id: checking.id)?.name == "Checking")
+        #expect(try await accounts.query(id: wallet.id)?.name == "Wallet")
+        #expect(try await accounts.query(id: checking.id)?.name == "Checking")
     }
 
     @Test func doesNotResurrectADeletedAccount() async throws {
@@ -59,17 +59,17 @@ struct SwiftDataAccountRepositoryTests {
         try await accounts.delete(deleted)
         try await accounts.save(account)
 
-        #expect(await accounts.find(id: account.id) == nil)
+        #expect(try await accounts.query(id: account.id) == nil)
     }
 
-    // MARK: Find
+    // MARK: Query
 
     @Test func findsALiveAccount() async throws {
         let (container, writer) = try await makeStore()
         let account = try Account.make()
         try await writer.save(account)
 
-        #expect(await reader(container).find(id: account.id) != nil)
+        #expect(try await reader(container).query(id: account.id) != nil)
     }
 
     @Test func hidesADeletedAccount() async throws {
@@ -79,12 +79,12 @@ struct SwiftDataAccountRepositoryTests {
         let deleted = try account.delete(at: Date(timeIntervalSince1970: 1_700_000_000))
         try await accounts.delete(deleted)
 
-        #expect(await accounts.find(id: account.id) == nil)
+        #expect(try await accounts.query(id: account.id) == nil)
     }
 
     @Test func returnsNilWhenMissing() async throws {
         let (_, accounts) = try await makeStore()
-        #expect(await accounts.find(id: UUID()) == nil)
+        #expect(try await accounts.query(id: UUID()) == nil)
     }
 
     // MARK: Delete

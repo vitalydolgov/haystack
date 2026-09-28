@@ -13,7 +13,7 @@ struct AddAccountTests {
             notes: "Pocket cash",
             balance: 42
         )
-        let stored = try #require(await accounts.find(id: added.id))
+        let stored = try #require(try await accounts.query(id: added.id))
 
         #expect(stored.name == "Wallet")
         #expect(stored.type == .cash)

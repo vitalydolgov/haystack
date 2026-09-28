@@ -12,7 +12,7 @@ struct AdjustBalanceTests {
 
         try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 25)
     }
 
@@ -59,7 +59,7 @@ struct AdjustBalanceTests {
             try await AdjustBalance(unitOfWork: unitOfWork)
                 .execute(id: account.id, to: 10)
         }
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
     }
 

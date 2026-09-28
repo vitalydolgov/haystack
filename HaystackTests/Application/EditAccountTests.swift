@@ -17,7 +17,7 @@ struct EditAccountTests {
             notes: "On hand",
             workingBalance: 10
         )
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.name == "Cash")
         #expect(stored.notes == "On hand")
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 10)
@@ -36,7 +36,7 @@ struct EditAccountTests {
             notes: "Retired",
             workingBalance: 10
         )
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.name == "Old Wallet")
         #expect(stored.notes == "Retired")
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
@@ -91,7 +91,7 @@ struct EditAccountTests {
                 workingBalance: 10
             )
         }
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.name == "Wallet")
         #expect(stored.notes == "Pocket cash")
         #expect(stored.balance(await transactions.find(accountID: stored.id)) == 42)
