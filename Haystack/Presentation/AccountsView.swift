@@ -2,22 +2,20 @@ import SwiftData
 import SwiftUI
 
 struct AccountsView: View {
-    @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(Navigator.self) private var navigator
-    @Query(
-        filter: #Predicate<AccountRecord> { $0.deletedAt == nil },
-        sort: \AccountRecord.name
-    )
-    private var accounts: [AccountRecord]
     @Query(filter: #Predicate<TransactionRecord> { $0.deletedAt == nil })
     private var transactions: [TransactionRecord]
+    @State private var accounts: [Account] = []
     @State private var pendingCloseID: UUID?
 
-    private var openAccounts: [AccountRecord] {
+    @Environment(Navigator.self) private var navigator
+    @Environment(\.unitOfWork) private var unitOfWork
+    @Environment(\.accountRepository) private var accountRepository
+
+    private var openAccounts: [Account] {
         accounts.filter { !$0.isClosed }
     }
 
-    private var closedAccounts: [AccountRecord] {
+    private var closedAccounts: [Account] {
         accounts.filter(\.isClosed)
     }
 
@@ -62,10 +60,23 @@ struct AccountsView: View {
         } message: {
             Text("Before you can close this account, the balance will have to be zeroed out.")
         }
+        .task(id: navigator.sheet) {
+            accounts = await accounts()
+        }
         .task {
             #if DEBUG
             print("navigation \(Self.self)")
             #endif
+        }
+    }
+
+    private func accounts() async -> [Account] {
+        do {
+            guard let accountRepository else { return [] }
+            return try await accountRepository.query(.includingClosed)
+        } catch {
+            print("error: \(error)")
+            return []
         }
     }
 
@@ -76,7 +87,7 @@ struct AccountsView: View {
         )
     }
 
-    private func accountRow(_ account: AccountRecord) -> some View {
+    private func accountRow(_ account: Account) -> some View {
         NavigationLink(value: Route.transactions(accountID: account.id)) {
             HStack {
                 Text(account.name)
@@ -103,7 +114,7 @@ struct AccountsView: View {
         }
     }
 
-    private func requestClose(_ account: AccountRecord) {
+    private func requestClose(_ account: Account) {
         if balance(for: account) == 0 {
             close(id: account.id)
         } else {
@@ -111,7 +122,7 @@ struct AccountsView: View {
         }
     }
 
-    private func balance(for account: AccountRecord) -> Decimal {
+    private func balance(for account: Account) -> Decimal {
         transactions.reduce(into: 0 as Decimal) { total, transaction in
             guard transaction.accountID == account.id else { return }
             total += transaction.amount
@@ -122,6 +133,7 @@ struct AccountsView: View {
         guard let unitOfWork else { return }
         Task {
             try await CloseAccount(unitOfWork: unitOfWork).execute(id: id)
+            accounts = await accounts()
         }
     }
 
@@ -129,6 +141,7 @@ struct AccountsView: View {
         guard let unitOfWork else { return }
         Task {
             try await ReopenAccount(unitOfWork: unitOfWork).execute(id: id)
+            accounts = await accounts()
         }
     }
 }

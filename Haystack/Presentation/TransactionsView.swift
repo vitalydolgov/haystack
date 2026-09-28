@@ -3,30 +3,25 @@ import SwiftUI
 
 struct TransactionsView: View {
     let accountID: UUID
-    @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
-    @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(Navigator.self) private var navigator
 
+    @State private var accountName = ""
     @State private var deletingTransaction: TransactionRecord?
     @State private var deleteID: UUID?
     @State private var deleteTransferID: UUID?
 
+    @Environment(Navigator.self) private var navigator
+    @Environment(\.unitOfWork) private var unitOfWork
+    @Environment(\.accountRepository) private var accountRepository
+
     init(accountID: UUID) {
         self.accountID = accountID
-        _accounts = Query(
-            filter: #Predicate<AccountRecord> { $0.id == accountID }
-        )
         _transactions = Query(
             filter: #Predicate<TransactionRecord> {
                 $0.accountID == accountID && $0.deletedAt == nil
             },
             sort: [SortDescriptor(\.packedDate, order: .reverse)]
         )
-    }
-
-    private var accountName: String {
-        accounts.first?.name ?? ""
     }
 
     // TODO: fetch currency code
@@ -92,6 +87,9 @@ struct TransactionsView: View {
             guard let deleteID else { return }
             await delete(id: deleteID)
         }
+        .task(id: navigator.sheet) {
+            accountName = await accountName()
+        }
         .task {
             #if DEBUG
             print("navigation \(Self.self) accountID=\(accountID)")
@@ -118,6 +116,19 @@ struct TransactionsView: View {
             get: { deletingTransaction != nil },
             set: { if !$0 { deletingTransaction = nil } }
         )
+    }
+
+    private func accountName() async -> String {
+        do {
+            guard let accountRepository else { return "" }
+            guard let account = try await accountRepository.query(id: accountID) else {
+                return ""
+            }
+            return account.name
+        } catch {
+            print("error: \(error)")
+            return ""
+        }
     }
 
     private func delete(id: UUID) async {

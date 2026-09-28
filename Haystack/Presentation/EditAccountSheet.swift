@@ -2,11 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct EditAccountSheet: View {
-    @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(\.dismiss) private var dismiss
-
     private let accountID: UUID
-    @Query private var accounts: [AccountRecord]
     @Query private var transactions: [TransactionRecord]
     @State private var isClosed = false
     @State private var balance: Decimal = 0
@@ -16,13 +12,12 @@ struct EditAccountSheet: View {
     @State private var isConfirmingClose = false
     @State private var saveID: UUID?
 
+    @Environment(\.unitOfWork) private var unitOfWork
+    @Environment(\.accountRepository) private var accountRepository
+    @Environment(\.dismiss) private var dismiss
+
     init(accountID: UUID) {
         self.accountID = accountID
-        _accounts = Query(
-            filter: #Predicate<AccountRecord> {
-                $0.id == accountID && $0.deletedAt == nil
-            }
-        )
         _transactions = Query(
             filter: #Predicate<TransactionRecord> {
                 $0.accountID == accountID && $0.deletedAt == nil
@@ -85,7 +80,7 @@ struct EditAccountSheet: View {
                 #if DEBUG
                 print("navigation \(Self.self) accountID=\(accountID)")
                 #endif
-                guard let account = accounts.first else {
+                guard let account = await account() else {
                     dismiss()
                     return
                 }
@@ -98,6 +93,16 @@ struct EditAccountSheet: View {
                 balance = current
                 balanceText = current.formatted(.number)
             }
+        }
+    }
+
+    private func account() async -> Account? {
+        do {
+            guard let accountRepository else { return nil }
+            return try await accountRepository.query(id: accountID)
+        } catch {
+            print("error: \(error)")
+            return nil
         }
     }
 
