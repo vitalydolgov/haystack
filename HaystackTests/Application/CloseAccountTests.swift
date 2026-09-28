@@ -7,13 +7,14 @@ struct CloseAccountTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let account = try Account.make()
+        let account = try Account.make(balance: 25)
         await accounts.save(account)
         await transactions.save(try Transaction.make(accountID: account.id, amount: 25))
 
         try await CloseAccount(unitOfWork: unitOfWork).execute(id: account.id)
         let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.balance(await transactions.query(.account(stored.id))) == 0)
+        #expect(stored.balance == 0)
         #expect(stored.isClosed)
     }
 

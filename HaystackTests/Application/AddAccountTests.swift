@@ -19,6 +19,7 @@ struct AddAccountTests {
         #expect(stored.type == .cash)
         #expect(stored.notes == "Pocket cash")
         #expect(stored.balance(await transactions.query(.account(stored.id))) == 42)
+        #expect(stored.balance == 42)
     }
 
     @Test func recordsAnAdjustmentWhenBalanceIsNonZero() async throws {

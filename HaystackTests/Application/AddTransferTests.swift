@@ -35,6 +35,8 @@ struct AddTransferTests {
         let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
         #expect(fromLeg.date == (year: components.year!, month: components.month!, day: components.day!))
         #expect(toLeg.date == (year: components.year!, month: components.month!, day: components.day!))
+        #expect(try await accounts.query(id: fromAccount.id)?.balance == -12.5)
+        #expect(try await accounts.query(id: toAccount.id)?.balance == 12.5)
     }
 
     // MARK: Errors

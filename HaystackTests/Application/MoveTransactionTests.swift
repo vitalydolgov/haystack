@@ -7,7 +7,7 @@ struct MoveTransactionTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let source = try Account.make(name: "Wallet")
+        let source = try Account.make(name: "Wallet", balance: -12.5)
         let target = try Account.make(name: "Savings", type: .savings)
         await accounts.save(source)
         await accounts.save(target)
@@ -32,6 +32,8 @@ struct MoveTransactionTests {
         #expect(stored.type == .standard)
         #expect(await transactions.query(.account(source.id)).isEmpty)
         #expect(await transactions.all().count == 1)
+        #expect(try await accounts.query(id: source.id)?.balance == 0)
+        #expect(try await accounts.query(id: target.id)?.balance == -12.5)
     }
 
     @Test func doesNotChangeWhenAlreadyOnTheTargetAccount() async throws {
@@ -175,7 +177,7 @@ struct MoveTransactionTests {
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
-        await #expect(throws: TransactionError.invalidType) {
+        await #expect(throws: TransactionError.notFound) {
             try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: fromLeg.id,
                 movingTo: target.id

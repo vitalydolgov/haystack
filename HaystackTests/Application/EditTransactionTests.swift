@@ -7,7 +7,7 @@ struct EditTransactionTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let account = try Account.make()
+        let account = try Account.make(balance: 10)
         await accounts.save(account)
         let transaction = try Transaction.make(
             accountID: account.id,
@@ -30,6 +30,7 @@ struct EditTransactionTests {
         #expect(stored.date == (year: components.year!, month: components.month!, day: components.day!))
         #expect(stored.amount == -12.5)
         #expect(stored.notes == "Coffee")
+        #expect(try await accounts.query(id: account.id)?.balance == -12.5)
     }
 
     // MARK: Validation
@@ -196,7 +197,7 @@ struct EditTransactionTests {
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
-        await #expect(throws: TransactionError.invalidType) {
+        await #expect(throws: TransactionError.notFound) {
             try await EditTransaction(unitOfWork: unitOfWork).execute(
                 id: fromLeg.id,
                 accountID: account.id,

@@ -14,6 +14,7 @@ struct AdjustBalanceTests {
             .execute(id: account.id, to: 25)
         let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.balance(await transactions.query(.account(stored.id))) == 25)
+        #expect(stored.balance == 25)
     }
 
     @Test func recordsAnAdjustment() async throws {
@@ -30,23 +31,24 @@ struct AdjustBalanceTests {
         #expect(recorded.map(\.type) == [.adjustment])
     }
 
-    @Test func doesNotRecordAnAdjustmentWhenAlreadyAtTarget() async throws {
+    // MARK: Errors
+
+    @Test func failsWhenAlreadyAtTarget() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let account = try Account.make()
+        let account = try Account.make(balance: 25)
         await accounts.save(account)
         await transactions.save(try Transaction.make(accountID: account.id, amount: 25))
 
-        try await AdjustBalance(unitOfWork: unitOfWork)
-            .execute(id: account.id, to: 25)
-
+        await #expect(throws: TransactionError.invalidAmount) {
+            try await AdjustBalance(unitOfWork: unitOfWork)
+                .execute(id: account.id, to: 25)
+        }
         let recorded = await transactions.query(.account(account.id))
         #expect(recorded.count == 1)
         #expect(recorded.map(\.type) == [.standard])
     }
-
-    // MARK: Errors
 
     @Test func failsWhenClosed() async throws {
         let accounts = InMemoryAccountRepository()

@@ -7,8 +7,8 @@ struct ConvertTransferToTransactionTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let fromAccount = try Account.make(name: "Wallet")
-        let toAccount = try Account.make(name: "Savings", type: .savings)
+        let fromAccount = try Account.make(name: "Wallet", balance: -12.5)
+        let toAccount = try Account.make(name: "Savings", type: .savings, balance: 12.5)
         await accounts.save(fromAccount)
         await accounts.save(toAccount)
         let transferID = UUID()
@@ -49,6 +49,8 @@ struct ConvertTransferToTransactionTests {
         #expect(await transactions.query(id: toLeg.id) == nil)
         #expect(await transactions.deleted(id: toLeg.id) != nil)
         #expect(await transactions.all().count == 1)
+        #expect(try await accounts.query(id: fromAccount.id)?.balance == -20)
+        #expect(try await accounts.query(id: toAccount.id)?.balance == 0)
     }
 
     @Test func keepsInflowLeg() async throws {
@@ -202,7 +204,9 @@ struct ConvertTransferToTransactionTests {
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make(isClosed: true)
+        let other = try Account.make()
         await accounts.save(account)
+        await accounts.save(other)
         let transferID = UUID()
         let fromLeg = try Transaction.make(
             accountID: account.id,
@@ -210,7 +214,12 @@ struct ConvertTransferToTransactionTests {
             type: .transfer,
             transferID: transferID
         )
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let toLeg = try Transaction.make(
+            accountID: other.id,
+            amount: 10,
+            type: .transfer,
+            transferID: transferID
+        )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 

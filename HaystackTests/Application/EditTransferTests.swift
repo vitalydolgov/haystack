@@ -4,10 +4,15 @@ import Testing
 
 struct EditTransferTests {
     @Test func updatesDateAmountAndNotesOnBothLegs() async throws {
+        let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let fromAccount = try Account.make()
+        let toAccount = try Account.make()
+        await accounts.save(fromAccount)
+        await accounts.save(toAccount)
         let transferID = UUID()
-        let fromAccountID = UUID()
+        let fromAccountID = fromAccount.id
         let fromLeg = try Transaction.make(
             accountID: fromAccountID,
             amount: -10,
@@ -16,6 +21,7 @@ struct EditTransferTests {
             transferID: transferID
         )
         let toLeg = try Transaction.make(
+            accountID: toAccount.id,
             amount: 10,
             notes: "Gift",
             type: .transfer,
@@ -44,11 +50,17 @@ struct EditTransferTests {
     }
 
     @Test func appliesAmountToGivenAccount() async throws {
+        let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let fromAccount = try Account.make()
+        let toAccount = try Account.make()
+        await accounts.save(fromAccount)
+        await accounts.save(toAccount)
         let transferID = UUID()
-        let toAccountID = UUID()
+        let toAccountID = toAccount.id
         let fromLeg = try Transaction.make(
+            accountID: fromAccount.id,
             amount: -10,
             type: .transfer,
             transferID: transferID

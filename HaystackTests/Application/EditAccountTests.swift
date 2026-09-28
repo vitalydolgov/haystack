@@ -7,7 +7,7 @@ struct EditAccountTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let account = try Account.make(type: .debitCard, notes: "Pocket cash")
+        let account = try Account.make(type: .debitCard, notes: "Pocket cash", balance: 42)
         await accounts.save(account)
         await transactions.save(try Transaction.make(accountID: account.id, amount: 42))
 
@@ -21,6 +21,7 @@ struct EditAccountTests {
         #expect(stored.name == "Cash")
         #expect(stored.notes == "On hand")
         #expect(stored.balance(await transactions.query(.account(stored.id))) == 10)
+        #expect(stored.balance == 10)
     }
 
     @Test func persistsNameAndNotesWhenClosedWithoutChangingBalance() async throws {
@@ -46,7 +47,7 @@ struct EditAccountTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let account = try Account.make()
+        let account = try Account.make(balance: 42)
         await accounts.save(account)
         await transactions.save(try Transaction.make(accountID: account.id, amount: 42))
 

@@ -12,6 +12,7 @@ struct SwiftDataAccountRepositoryTests {
             name: "Wallet",
             type: .debitCard,
             notes: "Pocket cash",
+            balance: 42,
             isClosed: true
         )
         try await writer.save(account)
@@ -21,6 +22,7 @@ struct SwiftDataAccountRepositoryTests {
         #expect(stored.name == "Wallet")
         #expect(stored.type == .debitCard)
         #expect(stored.notes == "Pocket cash")
+        #expect(stored.balance == 42)
         #expect(stored.isClosed == true)
     }
 
@@ -38,6 +40,18 @@ struct SwiftDataAccountRepositoryTests {
         #expect(stored.name == "Cash")
         #expect(stored.type == .cash)
         #expect(stored.notes == "On hand")
+    }
+
+    @Test func updatesBalance() async throws {
+        let (container, writer) = try await makeStore()
+        let account = try Account.make(balance: 10)
+        try await writer.save(account)
+        let updated = try Account.make(id: account.id, name: "Cash", balance: 4)
+        try await writer.save(updated)
+
+        let stored = try #require(try await reader(container).query(id: account.id))
+        #expect(stored.name == "Cash")
+        #expect(stored.balance == 4)
     }
 
     @Test func storesAccountsSeparately() async throws {
