@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
 
 // TODO: make "None" option
 struct AccountPicker: View {
-    @Query(filter: #Predicate<AccountRecord> { $0.deletedAt == nil && !$0.isClosed }, sort: \AccountRecord.name)
-    private var accounts: [AccountRecord]
     @Binding var selectedID: UUID
+    @State private var accounts: [Account] = []
+
+    @Environment(\.accountRepository) private var accountRepository
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -34,6 +34,18 @@ struct AccountPicker: View {
                         .labelStyle(.iconOnly)
                 }
             }
+        }
+        .task {
+            accounts = await accounts()
+        }
+    }
+
+    private func accounts() async -> [Account] {
+        do {
+            return try await accountRepository.query(.open)
+        } catch {
+            print("error: \(error)")
+            return []
         }
     }
 }

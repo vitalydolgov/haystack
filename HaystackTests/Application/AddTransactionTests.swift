@@ -17,7 +17,7 @@ struct AddTransactionTests {
             amount: -12.5,
             notes: "Coffee"
         )
-        let stored = try #require(await transactions.find(id: added.id))
+        let stored = try #require(await transactions.query(id: added.id))
         let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
 
         #expect(stored.accountID == account.id)

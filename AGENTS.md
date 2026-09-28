@@ -35,6 +35,10 @@ A body macro on mutating use-case `execute` methods. It wraps the method body in
 
 Do not call `unitOfWork.perform` by hand in use cases. Annotate `execute` with `@Transactional` and write against `store` directly.
 
+### Presentation
+
+Views do not use SwiftData directly: reads come from query interfaces in the environment. Load them inside `.task` and store the result in `@State`. Writes go through use cases. Do not use `@Query` or `ModelContext`.
+
 ## Testing
 
 Do not write tests during implementation. Tests are a later pass, only when requested.

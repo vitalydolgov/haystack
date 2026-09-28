@@ -10,13 +10,13 @@ struct MoveTransaction {
 
     @Transactional
     func execute(id: UUID, movingTo accountID: UUID) async throws {
-        guard let transaction = await store.transactions.find(id: id) else {
+        guard let transaction = try await store.transactions.query(id: id) else {
             throw TransactionError.notFound
         }
         guard transaction.type != .transfer else {
             throw TransactionError.invalidType
         }
-        guard let targetAccount = await store.accounts.find(id: accountID) else {
+        guard let targetAccount = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
         guard !targetAccount.isClosed else {

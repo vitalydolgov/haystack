@@ -19,17 +19,31 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         }
     }
 
-    func find(id: UUID) -> Transaction? {
-        guard let record = record(id: id), record.deletedAt == nil else { return nil }
-        return try? record.toTransaction()
+    func query(id: UUID) throws -> Transaction? {
+        let transactionID = id
+        var descriptor = FetchDescriptor<TransactionRecord>(
+            predicate: #Predicate { $0.id == transactionID && $0.deletedAt == nil }
+        )
+        descriptor.fetchLimit = 1
+        guard let record = try modelContext.fetch(descriptor).first else { return nil }
+        return try record.toTransaction()
     }
 
-    func find(accountID: UUID) -> [Transaction] {
-        let accountID = accountID
+    func query(_ query: TransactionQuery) throws -> [Transaction] {
+        try modelContext.fetch(descriptor(for: query)).map { try $0.toTransaction() }
+    }
+
+    func queryTransfer(id: UUID) throws -> (Transaction, Transaction)? {
+        let transferID = id
         let descriptor = FetchDescriptor<TransactionRecord>(
-            predicate: #Predicate { $0.accountID == accountID && $0.deletedAt == nil }
+            predicate: #Predicate { $0.transferID == transferID && $0.deletedAt == nil }
         )
-        return ((try? modelContext.fetch(descriptor)) ?? []).compactMap { try? $0.toTransaction() }
+        let transactions = try modelContext.fetch(descriptor).map { try $0.toTransaction() }
+        guard transactions.count == 2 else { return nil }
+        let outflow = transactions.first { $0.amount < 0 }
+        let inflow = transactions.first { $0.amount > 0 }
+        guard let outflow, let inflow else { return nil }
+        return (outflow, inflow)
     }
 
     func delete(_ transaction: DeletedTransaction) throws {
@@ -37,17 +51,19 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         record.deletedAt = transaction.deletedAt
     }
 
-    func findTransfer(id: UUID) async -> (Transaction, Transaction)? {
-        let descriptor = FetchDescriptor<TransactionRecord>(
-            predicate: #Predicate { $0.transferID == id && $0.deletedAt == nil }
-        )
-        let records = (try? modelContext.fetch(descriptor)) ?? []
-        let transactions = records.compactMap { try? $0.toTransaction() }
-        guard transactions.count == 2 else { return nil }
-        let outflow = transactions.first { $0.amount < 0 }
-        let inflow = transactions.first { $0.amount > 0 }
-        guard let outflow, let inflow else { return nil }
-        return (outflow, inflow)
+    private func descriptor(for query: TransactionQuery) -> FetchDescriptor<TransactionRecord> {
+        switch query {
+        case .account(let accountID):
+            let accountID = accountID
+            return FetchDescriptor(
+                predicate: #Predicate { $0.accountID == accountID && $0.deletedAt == nil },
+                sortBy: [SortDescriptor(\.packedDate, order: .reverse)]
+            )
+        case .all:
+            return FetchDescriptor(
+                predicate: #Predicate { $0.deletedAt == nil }
+            )
+        }
     }
 
     private func record(id: UUID) -> TransactionRecord? {

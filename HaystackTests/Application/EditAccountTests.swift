@@ -17,10 +17,10 @@ struct EditAccountTests {
             notes: "On hand",
             workingBalance: 10
         )
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.name == "Cash")
         #expect(stored.notes == "On hand")
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 10)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 10)
     }
 
     @Test func persistsNameAndNotesWhenClosedWithoutChangingBalance() async throws {
@@ -36,10 +36,10 @@ struct EditAccountTests {
             notes: "Retired",
             workingBalance: 10
         )
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.name == "Old Wallet")
         #expect(stored.notes == "Retired")
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 0)
     }
 
     @Test func doesNotRecordAnAdjustmentWhenWorkingBalanceIsUnchanged() async throws {
@@ -56,7 +56,7 @@ struct EditAccountTests {
             notes: "On hand",
             workingBalance: 42
         )
-        let recorded = await transactions.find(accountID: account.id)
+        let recorded = await transactions.query(.account(account.id))
         #expect(recorded.count == 1)
         #expect(recorded.map(\.type) == [.standard])
     }
@@ -91,10 +91,10 @@ struct EditAccountTests {
                 workingBalance: 10
             )
         }
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.name == "Wallet")
         #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 42)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 42)
     }
 
     @Test func failsWhenMissing() async {

@@ -1,8 +1,8 @@
-import SwiftData
 import SwiftUI
 
 struct EditTransactionSheet: View {
     @Environment(\.unitOfWork) private var unitOfWork
+    @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
 
     let accountID: UUID
@@ -13,42 +13,15 @@ struct EditTransactionSheet: View {
     }
     let mode: Mode
 
-    @Query private var transactions: [TransactionRecord]
-    @Query private var counterparts: [TransactionRecord]
-    
     @State private var amountText = ""
     @State private var isOutflow = true
     @State private var date = Date()
     @State private var notes = ""
     @State private var selectedAccountID = UUID()
     @State private var transferAccountID = UUID()
+    @State private var loadedCounterpartAccountID: UUID?
 
     @State private var saveID: UUID?
-
-    init(accountID: UUID, mode: Mode) {
-        self.accountID = accountID
-        self.mode = mode
-        switch mode {
-        case .plain(let transactionID):
-            _transactions = Query(
-                filter: #Predicate<TransactionRecord> {
-                    $0.id == transactionID && $0.deletedAt == nil
-                }
-            )
-            _counterparts = Query(filter: #Predicate<TransactionRecord> { _ in false })
-        case .transfer(let transferID):
-            _transactions = Query(
-                filter: #Predicate<TransactionRecord> {
-                    $0.transferID == transferID && $0.accountID == accountID && $0.deletedAt == nil
-                }
-            )
-            _counterparts = Query(
-                filter: #Predicate<TransactionRecord> {
-                    $0.transferID == transferID && $0.accountID != accountID && $0.deletedAt == nil
-                }
-            )
-        }
-    }
 
     private var parsedAmount: Decimal? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -61,10 +34,8 @@ struct EditTransactionSheet: View {
         case .plain:
             return selectedAccountID != accountID
         case .transfer:
-            guard let counterpart = counterparts.first else {
-                return false
-            }
-            return selectedAccountID != accountID || counterpart.accountID != transferAccountID
+            guard let loadedCounterpartAccountID else { return false }
+            return selectedAccountID != accountID || loadedCounterpartAccountID != transferAccountID
         }
     }
 
@@ -122,17 +93,46 @@ struct EditTransactionSheet: View {
                     print("navigation \(Self.self) accountID=\(accountID) transferID=\(transferID)")
                 }
                 #endif
-                guard let transaction = transactions.first else { return }
-                amountText = Self.formattedAmount(transaction.amount)
-                isOutflow = transaction.amount < 0
-                date = Transaction.date(from: transaction.unpackedDate)
-                notes = transaction.notes
-                selectedAccountID = transaction.accountID
-                if let counterpart = counterparts.first {
-                    transferAccountID = counterpart.accountID
+                switch mode {
+                case .plain(let transactionID):
+                    guard let transaction = await transaction(id: transactionID) else { return }
+                    show(transaction)
+                case .transfer(let transferID):
+                    guard let (outflow, inflow) = await transfer(id: transferID) else { return }
+                    let transaction = outflow.accountID == accountID ? outflow : inflow
+                    let counterpart = outflow.accountID == accountID ? inflow : outflow
+                    show(transaction, counterpartAccountID: counterpart.accountID)
                 }
             }
         }
+    }
+
+    private func transaction(id: UUID) async -> Transaction? {
+        do {
+            return try await transactionRepository.query(id: id)
+        } catch {
+            print("error: \(error)")
+            return nil
+        }
+    }
+
+    private func transfer(id: UUID) async -> (Transaction, Transaction)? {
+        do {
+            return try await transactionRepository.queryTransfer(id: id)
+        } catch {
+            print("error: \(error)")
+            return nil
+        }
+    }
+
+    private func show(_ transaction: Transaction, counterpartAccountID: UUID? = nil) {
+        amountText = Self.formattedAmount(transaction.amount)
+        isOutflow = transaction.amount < 0
+        date = Transaction.date(from: transaction.date)
+        notes = transaction.notes
+        selectedAccountID = transaction.accountID
+        transferAccountID = counterpartAccountID ?? transaction.accountID
+        loadedCounterpartAccountID = counterpartAccountID
     }
 
     private static func formattedAmount(_ amount: Decimal) -> String {
@@ -160,7 +160,6 @@ struct EditTransactionSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork else { return }
         do {
             switch mode {
             case .plain(let transactionID) where isConversion:

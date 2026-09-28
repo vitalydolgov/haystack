@@ -1,13 +1,7 @@
-import SwiftData
 import SwiftUI
 
 struct EditAccountSheet: View {
-    @Environment(\.unitOfWork) private var unitOfWork
-    @Environment(\.dismiss) private var dismiss
-
     private let accountID: UUID
-    @Query private var accounts: [AccountRecord]
-    @Query private var transactions: [TransactionRecord]
     @State private var isClosed = false
     @State private var balance: Decimal = 0
     @State private var name = ""
@@ -16,18 +10,13 @@ struct EditAccountSheet: View {
     @State private var isConfirmingClose = false
     @State private var saveID: UUID?
 
+    @Environment(\.unitOfWork) private var unitOfWork
+    @Environment(\.accountRepository) private var accountRepository
+    @Environment(\.transactionRepository) private var transactionRepository
+    @Environment(\.dismiss) private var dismiss
+
     init(accountID: UUID) {
         self.accountID = accountID
-        _accounts = Query(
-            filter: #Predicate<AccountRecord> {
-                $0.id == accountID && $0.deletedAt == nil
-            }
-        )
-        _transactions = Query(
-            filter: #Predicate<TransactionRecord> {
-                $0.accountID == accountID && $0.deletedAt == nil
-            }
-        )
     }
 
     private var parsedBalance: Decimal? {
@@ -85,19 +74,38 @@ struct EditAccountSheet: View {
                 #if DEBUG
                 print("navigation \(Self.self) accountID=\(accountID)")
                 #endif
-                guard let account = accounts.first else {
+                guard let account = await account() else {
                     dismiss()
                     return
                 }
                 name = account.name
                 notes = account.notes
                 isClosed = account.isClosed
-                let current = transactions.reduce(into: 0 as Decimal) { total, transaction in
-                    total += transaction.amount
-                }
+                let current = await workingBalance()
                 balance = current
                 balanceText = current.formatted(.number)
             }
+        }
+    }
+
+    private func account() async -> Account? {
+        do {
+            return try await accountRepository.query(id: accountID)
+        } catch {
+            print("error: \(error)")
+            return nil
+        }
+    }
+
+    private func workingBalance() async -> Decimal {
+        do {
+            let transactions = try await transactionRepository.query(.account(accountID))
+            return transactions.reduce(into: 0 as Decimal) { total, transaction in
+                total += transaction.amount
+            }
+        } catch {
+            print("error: \(error)")
+            return 0
         }
     }
 
@@ -106,7 +114,6 @@ struct EditAccountSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork else { return }
         guard EditAccount.canExecute(name: name) else { return }
         do {
             try await EditAccount(unitOfWork: unitOfWork).execute(
@@ -130,7 +137,6 @@ struct EditAccountSheet: View {
     }
 
     private func close() {
-        guard let unitOfWork else { return }
         Task {
             try await CloseAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
@@ -138,7 +144,6 @@ struct EditAccountSheet: View {
     }
 
     private func reopen() {
-        guard let unitOfWork else { return }
         Task {
             try await ReopenAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
@@ -147,7 +152,6 @@ struct EditAccountSheet: View {
 
     private func delete() {
         // TODO: warn about transferring transactions onto another account
-        guard let unitOfWork else { return }
         Task {
             try await DeleteAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()

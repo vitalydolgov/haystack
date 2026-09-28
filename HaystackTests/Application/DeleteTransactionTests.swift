@@ -11,7 +11,7 @@ struct DeleteTransactionTests {
         let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
         try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: transaction.id, at: deletedAt)
-        #expect(await transactions.find(id: transaction.id) == nil)
+        #expect(await transactions.query(id: transaction.id) == nil)
 
         let stored = try #require(await transactions.deleted(id: transaction.id))
         #expect(stored.deletedAt == deletedAt)
@@ -54,7 +54,7 @@ struct DeleteTransactionTests {
         await #expect(throws: TransactionError.invalidType) {
             try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: fromLeg.id)
         }
-        #expect(await transactions.find(id: fromLeg.id) != nil)
-        #expect(await transactions.find(id: toLeg.id) != nil)
+        #expect(await transactions.query(id: fromLeg.id) != nil)
+        #expect(await transactions.query(id: toLeg.id) != nil)
     }
 }

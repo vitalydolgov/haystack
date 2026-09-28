@@ -15,10 +15,10 @@ struct AddTransfer {
         guard fromAccountID != toAccountID else {
             throw TransferError.sameAccount
         }
-        guard let fromAccount = await store.accounts.find(id: fromAccountID) else {
+        guard let fromAccount = try await store.accounts.query(id: fromAccountID) else {
             throw AccountError.notFound
         }
-        guard let toAccount = await store.accounts.find(id: toAccountID) else {
+        guard let toAccount = try await store.accounts.query(id: toAccountID) else {
             throw AccountError.notFound
         }
         guard !fromAccount.isClosed else { throw AccountError.closed }

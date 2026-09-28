@@ -18,7 +18,7 @@ struct SwiftDataTransactionRepositoryTests {
         )
         try await writer.save(transaction)
 
-        let stored = try #require(await reader(container).find(id: transaction.id))
+        let stored = try #require(try await reader(container).query(id: transaction.id))
         #expect(stored.id == transaction.id)
         #expect(stored.accountID == accountID)
         #expect(stored.date == (year: 2024, month: 3, day: 15))
@@ -40,7 +40,7 @@ struct SwiftDataTransactionRepositoryTests {
         )
         try await writer.save(transaction)
 
-        let stored = try #require(await reader(container).find(id: transaction.id))
+        let stored = try #require(try await reader(container).query(id: transaction.id))
         #expect(stored.date == (year: 2025, month: 1, day: 2))
         #expect(stored.amount == 20)
         #expect(stored.notes == "Second")
@@ -53,8 +53,8 @@ struct SwiftDataTransactionRepositoryTests {
         try await transactions.save(rent)
         try await transactions.save(pay)
 
-        #expect(await transactions.find(id: rent.id)?.notes == "Rent")
-        #expect(await transactions.find(id: pay.id)?.notes == "Pay")
+        #expect(try await transactions.query(id: rent.id)?.notes == "Rent")
+        #expect(try await transactions.query(id: pay.id)?.notes == "Pay")
     }
 
     @Test func doesNotResurrectADeletedTransaction() async throws {
@@ -65,17 +65,17 @@ struct SwiftDataTransactionRepositoryTests {
         try await transactions.delete(deleted)
         try await transactions.save(transaction)
 
-        #expect(await transactions.find(id: transaction.id) == nil)
+        #expect(try await transactions.query(id: transaction.id) == nil)
     }
 
-    // MARK: Find
+    // MARK: Query
 
     @Test func findsALiveTransaction() async throws {
         let (container, writer) = try await makeStore()
         let transaction = try Transaction.make()
         try await writer.save(transaction)
 
-        #expect(await reader(container).find(id: transaction.id) != nil)
+        #expect(try await reader(container).query(id: transaction.id) != nil)
     }
 
     @Test func hidesADeletedTransaction() async throws {
@@ -85,12 +85,12 @@ struct SwiftDataTransactionRepositoryTests {
         let deleted = transaction.delete(at: Date(timeIntervalSince1970: 1_700_000_000))
         try await transactions.delete(deleted)
 
-        #expect(await transactions.find(id: transaction.id) == nil)
+        #expect(try await transactions.query(id: transaction.id) == nil)
     }
 
     @Test func returnsNilWhenMissing() async throws {
         let (_, transactions) = try await makeStore()
-        #expect(await transactions.find(id: UUID()) == nil)
+        #expect(try await transactions.query(id: UUID()) == nil)
     }
 
     @Test func findsTransactionsForAnAccount() async throws {
@@ -99,7 +99,7 @@ struct SwiftDataTransactionRepositoryTests {
         let rent = try Transaction.make(accountID: accountID, amount: -100)
         try await transactions.save(rent)
 
-        let found = await transactions.find(accountID: accountID)
+        let found = try await transactions.query(.account(accountID))
         #expect(found.map(\.id) == [rent.id])
     }
 
@@ -111,7 +111,7 @@ struct SwiftDataTransactionRepositoryTests {
         try await transactions.save(rent)
         try await transactions.save(other)
 
-        let found = await transactions.find(accountID: accountID)
+        let found = try await transactions.query(.account(accountID))
         #expect(found.map(\.id) == [rent.id])
     }
 
@@ -122,10 +122,10 @@ struct SwiftDataTransactionRepositoryTests {
         try await transactions.save(rent)
         try await transactions.delete(rent.delete(at: Date(timeIntervalSince1970: 1_700_000_000)))
 
-        #expect(await transactions.find(accountID: accountID).isEmpty)
+        #expect(try await transactions.query(.account(accountID)).isEmpty)
     }
 
-    // MARK: Find Transfer
+    // MARK: Query Transfer
 
     @Test func findsTransferByTransferID() async throws {
         let (container, writer) = try await makeStore()
@@ -145,7 +145,7 @@ struct SwiftDataTransactionRepositoryTests {
         try await writer.save(fromLeg)
         try await writer.save(toLeg)
 
-        let (foundFrom, foundTo) = try #require(await reader(container).findTransfer(id: transferID))
+        let (foundFrom, foundTo) = try #require(try await reader(container).queryTransfer(id: transferID))
         #expect(foundFrom.id == fromLeg.id)
         #expect(foundTo.id == toLeg.id)
         #expect(foundFrom.transferID == transferID)
@@ -171,12 +171,12 @@ struct SwiftDataTransactionRepositoryTests {
         try await writer.save(toLeg)
         try await writer.delete(fromLeg.delete(at: Date()))
 
-        #expect(await reader(container).findTransfer(id: transferID) == nil)
+        #expect(try await reader(container).queryTransfer(id: transferID) == nil)
     }
 
     @Test func returnsNilWhenTransferNotFound() async throws {
         let (_, transactions) = try await makeStore()
-        #expect(await transactions.findTransfer(id: UUID()) == nil)
+        #expect(try await transactions.queryTransfer(id: UUID()) == nil)
     }
 
     // MARK: Delete

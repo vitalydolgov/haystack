@@ -13,12 +13,12 @@ struct AddAccountTests {
             notes: "Pocket cash",
             balance: 42
         )
-        let stored = try #require(await accounts.find(id: added.id))
+        let stored = try #require(try await accounts.query(id: added.id))
 
         #expect(stored.name == "Wallet")
         #expect(stored.type == .cash)
         #expect(stored.notes == "Pocket cash")
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 42)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 42)
     }
 
     @Test func recordsAnAdjustmentWhenBalanceIsNonZero() async throws {
@@ -31,7 +31,7 @@ struct AddAccountTests {
             balance: 42
         )
 
-        let recorded = await transactions.find(accountID: added.id)
+        let recorded = await transactions.query(.account(added.id))
         #expect(recorded.map(\.type) == [.adjustment])
     }
 
@@ -44,7 +44,7 @@ struct AddAccountTests {
             type: .cash
         )
 
-        #expect(await transactions.find(accountID: added.id).isEmpty)
+        #expect(await transactions.query(.account(added.id)).isEmpty)
     }
 
     // MARK: Validation

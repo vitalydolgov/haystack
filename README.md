@@ -27,4 +27,4 @@ The code follows DDD, with a clean split between layers:
 - **Infrastructure** — persistence and other adapters. Writes are isolated to a `ModelActor`.
 - **Presentation** — SwiftUI, with UIKit only where it is the better fit.
 
-The read path is native: presentation talks to persistence directly. The write path goes through the application layer. Domain and application layers' code never depends on `MainActor`.
+Views do not use SwiftData directly: reads come through query interfaces, loaded from the environment inside `.task` and kept in view state. Writes go through the application layer. Domain and application code never depends on `MainActor`.

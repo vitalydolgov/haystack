@@ -29,7 +29,7 @@ struct ConvertTransactionToTransferTests {
             notes: "Coffee"
         )
 
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == account.id)
         #expect(stored.type == .transfer)
         #expect(stored.amount == -12.5)
@@ -66,7 +66,7 @@ struct ConvertTransactionToTransferTests {
             amount: 12.5
         )
 
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.amount == 12.5)
         let counterpart = try #require(await transactions.all().first { $0.id != stored.id })
         #expect(counterpart.accountID == counterpartAccount.id)
@@ -94,7 +94,7 @@ struct ConvertTransactionToTransferTests {
             amount: -12.5
         )
 
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == targetAccount.id)
         #expect(stored.type == .transfer)
         let counterpart = try #require(await transactions.all().first { $0.id != stored.id })
@@ -122,7 +122,7 @@ struct ConvertTransactionToTransferTests {
                 amount: -10
             )
         }
-        #expect(await transactions.find(id: transaction.id)?.type == .standard)
+        #expect(await transactions.query(id: transaction.id)?.type == .standard)
         #expect(await transactions.all().count == 1)
     }
 
@@ -175,8 +175,8 @@ struct ConvertTransactionToTransferTests {
                 amount: -10
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.transferID == transferID)
-        #expect(await transactions.find(id: toLeg.id)?.transferID == transferID)
+        #expect(await transactions.query(id: fromLeg.id)?.transferID == transferID)
+        #expect(await transactions.query(id: toLeg.id)?.transferID == transferID)
         #expect(await transactions.all().count == 2)
     }
 
@@ -243,7 +243,7 @@ struct ConvertTransactionToTransferTests {
                 amount: -10
             )
         }
-        #expect(await transactions.find(id: transaction.id)?.type == .standard)
+        #expect(await transactions.query(id: transaction.id)?.type == .standard)
         #expect(await transactions.all().count == 1)
     }
 
@@ -267,7 +267,7 @@ struct ConvertTransactionToTransferTests {
                 amount: -10
             )
         }
-        #expect(await transactions.find(id: transaction.id)?.type == .standard)
+        #expect(await transactions.query(id: transaction.id)?.type == .standard)
         #expect(await transactions.all().count == 1)
     }
 
@@ -291,7 +291,7 @@ struct ConvertTransactionToTransferTests {
                 amount: 0
             )
         }
-        #expect(await transactions.find(id: transaction.id)?.type == .standard)
+        #expect(await transactions.query(id: transaction.id)?.type == .standard)
         #expect(await transactions.all().count == 1)
     }
 }

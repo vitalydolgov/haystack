@@ -10,7 +10,7 @@ struct ReopenAccountTests {
         await accounts.save(account)
 
         try await ReopenAccount(unitOfWork: unitOfWork).execute(id: account.id)
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(!stored.isClosed)
     }
 
@@ -21,7 +21,7 @@ struct ReopenAccountTests {
         await accounts.save(account)
 
         try await ReopenAccount(unitOfWork: unitOfWork).execute(id: account.id)
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(!stored.isClosed)
     }
 

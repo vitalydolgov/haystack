@@ -24,8 +24,8 @@ struct DeleteTransferTests {
         let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
         try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: transferID, at: deletedAt)
-        #expect(await transactions.find(id: fromLeg.id) == nil)
-        #expect(await transactions.find(id: toLeg.id) == nil)
+        #expect(await transactions.query(id: fromLeg.id) == nil)
+        #expect(await transactions.query(id: toLeg.id) == nil)
     }
 
     // MARK: Errors

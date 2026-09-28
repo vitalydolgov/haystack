@@ -24,7 +24,7 @@ struct EditTransactionTests {
             amount: -12.5,
             notes: "Coffee"
         )
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
 
         #expect(stored.date == (year: components.year!, month: components.month!, day: components.day!))
@@ -76,7 +76,7 @@ struct EditTransactionTests {
                 amount: 20
             )
         }
-        #expect(await transactions.find(id: transaction.id) == nil)
+        #expect(await transactions.query(id: transaction.id) == nil)
     }
 
     @Test func failsWhenTheAccountDoesNotMatch() async throws {
@@ -98,7 +98,7 @@ struct EditTransactionTests {
                 amount: 20
             )
         }
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == account.id)
     }
 
@@ -176,7 +176,7 @@ struct EditTransactionTests {
                 amount: 0
             )
         }
-        #expect(await transactions.find(id: transaction.id)?.amount == 10)
+        #expect(await transactions.query(id: transaction.id)?.amount == 10)
     }
 
     @Test func failsWhenTransfer() async throws {
@@ -204,7 +204,7 @@ struct EditTransactionTests {
                 amount: -20
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.amount == -10)
-        #expect(await transactions.find(id: toLeg.id)?.amount == 10)
+        #expect(await transactions.query(id: fromLeg.id)?.amount == -10)
+        #expect(await transactions.query(id: toLeg.id)?.amount == 10)
     }
 }

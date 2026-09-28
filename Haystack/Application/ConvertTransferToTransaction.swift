@@ -18,7 +18,7 @@ struct ConvertTransferToTransaction {
         notes: String = ""
     ) async throws {
         guard amount != 0 else { throw TransactionError.invalidAmount }
-        guard let (fromLeg, toLeg) = await store.transactions.findTransfer(id: transferID) else {
+        guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: transferID) else {
             throw TransferError.notFound
         }
         let (keptLeg, droppedLeg): (Transaction, Transaction)
@@ -31,7 +31,7 @@ struct ConvertTransferToTransaction {
             throw TransactionError.notFound
         }
         let destinationID = destinationAccountID ?? keptLeg.accountID
-        guard let account = await store.accounts.find(id: destinationID) else {
+        guard let account = try await store.accounts.query(id: destinationID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else {

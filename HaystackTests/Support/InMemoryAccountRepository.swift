@@ -10,8 +10,17 @@ actor InMemoryAccountRepository: AccountRepository {
         accounts[account.id] = account
     }
 
-    func find(id: UUID) -> Account? {
+    func query(id: UUID, includeDeleted _: Bool) -> Account? {
         accounts[id]
+    }
+
+    func query(_ query: AccountQuery) -> [Account] {
+        switch query {
+        case .open:
+            accounts.values.filter { !$0.isClosed }.sorted { $0.name < $1.name }
+        case .includingClosed:
+            accounts.values.sorted { $0.name < $1.name }
+        }
     }
 
     func delete(_ account: DeletedAccount) {

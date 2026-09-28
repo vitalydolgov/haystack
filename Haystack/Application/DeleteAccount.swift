@@ -7,7 +7,7 @@ struct DeleteAccount {
 
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
-        guard let account = await store.accounts.find(id: id) else {
+        guard let account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }
         let deleted = try account.delete(at: date)

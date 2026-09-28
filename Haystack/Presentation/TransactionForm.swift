@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 private enum PickerField: Identifiable {
@@ -17,11 +16,11 @@ struct TransactionForm: View {
     @Binding var transferAccountID: UUID
 
     @State private var picker: PickerField?
+    @State private var accounts: [Account] = []
 
-    @Query(filter: #Predicate<AccountRecord> { $0.deletedAt == nil && !$0.isClosed })
-    private var accounts: [AccountRecord]
+    @Environment(\.accountRepository) private var accountRepository
 
-    private var transferAccount: AccountRecord? {
+    private var transferAccount: Account? {
         guard selectedAccountID != transferAccountID else { return nil }
         return accounts.first { $0.id == transferAccountID }
     }
@@ -82,12 +81,24 @@ struct TransactionForm: View {
                 AccountPicker(selectedID: $transferAccountID)
             }
         }
+        .task {
+            accounts = await accounts()
+        }
         .onChange(of: selectedAccountID) { oldValue, newValue in
             if transferAccountID == oldValue {
                 transferAccountID = newValue
             } else if newValue == transferAccountID {
                 transferAccountID = oldValue
             }
+        }
+    }
+
+    private func accounts() async -> [Account] {
+        do {
+            return try await accountRepository.query(.open)
+        } catch {
+            print("error: \(error)")
+            return []
         }
     }
 }

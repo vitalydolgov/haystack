@@ -39,8 +39,8 @@ struct ReplaceTransferTests {
             notes: "Rent"
         )
 
-        #expect(await transactions.find(id: fromLeg.id) == nil)
-        #expect(await transactions.find(id: toLeg.id) == nil)
+        #expect(await transactions.query(id: fromLeg.id) == nil)
+        #expect(await transactions.query(id: toLeg.id) == nil)
         let legs = await transactions.all()
         let outflow = try #require(legs.first { $0.amount < 0 })
         let inflow = try #require(legs.first { $0.amount > 0 })
@@ -94,8 +94,8 @@ struct ReplaceTransferTests {
                 amount: 0
             )
         }
-        #expect(await transactions.find(id: fromLeg.id) != nil)
-        #expect(await transactions.find(id: toLeg.id) != nil)
+        #expect(await transactions.query(id: fromLeg.id) != nil)
+        #expect(await transactions.query(id: toLeg.id) != nil)
     }
 
     @Test func failsWhenAmountIsNegative() async throws {
@@ -131,8 +131,8 @@ struct ReplaceTransferTests {
                 amount: -10
             )
         }
-        #expect(await transactions.find(id: fromLeg.id) != nil)
-        #expect(await transactions.find(id: toLeg.id) != nil)
+        #expect(await transactions.query(id: fromLeg.id) != nil)
+        #expect(await transactions.query(id: toLeg.id) != nil)
     }
 
     @Test func failsWhenNotFound() async throws {
@@ -189,8 +189,8 @@ struct ReplaceTransferTests {
                 amount: 10
             )
         }
-        #expect(await transactions.find(id: fromLeg.id) != nil)
-        #expect(await transactions.find(id: toLeg.id) != nil)
+        #expect(await transactions.query(id: fromLeg.id) != nil)
+        #expect(await transactions.query(id: toLeg.id) != nil)
         #expect(await transactions.all().count == 2)
     }
 }

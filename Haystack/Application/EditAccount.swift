@@ -10,7 +10,7 @@ struct EditAccount {
 
     @Transactional
     func execute(id: UUID, name: String, notes: String, workingBalance: Decimal) async throws {
-        guard var account = await store.accounts.find(id: id) else {
+        guard var account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }
         if !account.isClosed {

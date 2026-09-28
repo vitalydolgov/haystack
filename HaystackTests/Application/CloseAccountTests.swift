@@ -12,8 +12,8 @@ struct CloseAccountTests {
         await transactions.save(try Transaction.make(accountID: account.id, amount: 25))
 
         try await CloseAccount(unitOfWork: unitOfWork).execute(id: account.id)
-        let stored = try #require(await accounts.find(id: account.id))
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
+        let stored = try #require(try await accounts.query(id: account.id))
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 0)
         #expect(stored.isClosed)
     }
 
@@ -25,7 +25,7 @@ struct CloseAccountTests {
         await accounts.save(account)
 
         try await CloseAccount(unitOfWork: unitOfWork).execute(id: account.id)
-        let stored = try #require(await accounts.find(id: account.id))
+        let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.isClosed)
     }
 

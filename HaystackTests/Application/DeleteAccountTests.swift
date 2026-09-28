@@ -11,7 +11,7 @@ struct DeleteAccountTests {
         let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
         try await DeleteAccount(unitOfWork: unitOfWork).execute(id: account.id, at: deletedAt)
-        #expect(await accounts.find(id: account.id) == nil)
+        #expect(try await accounts.query(id: account.id) == nil)
 
         let stored = try #require(await accounts.deleted(id: account.id))
         #expect(stored.deletedAt == deletedAt)
@@ -28,7 +28,7 @@ struct DeleteAccountTests {
         await #expect(throws: AccountError.open) {
             try await DeleteAccount(unitOfWork: unitOfWork).execute(id: account.id)
         }
-        #expect(await accounts.find(id: account.id) != nil)
+        #expect(try await accounts.query(id: account.id) != nil)
     }
 
     @Test func failsWhenMissing() async {

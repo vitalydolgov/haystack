@@ -6,7 +6,7 @@ struct DeleteTransfer {
 
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
-        guard let (fromLeg, toLeg) = await store.transactions.findTransfer(id: id) else {
+        guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: id) else {
             throw TransferError.notFound
         }
         try await store.transactions.delete(fromLeg.delete(at: date))

@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 struct AddTransactionSheet: View {
@@ -79,7 +78,6 @@ struct AddTransactionSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork else { return }
         do {
             if isTransfer {
                 _ = try await AddTransfer(unitOfWork: unitOfWork).execute(

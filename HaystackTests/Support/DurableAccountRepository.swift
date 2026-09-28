@@ -13,8 +13,12 @@ struct DurableAccountRepository: AccountRepository {
         try await unitOfWork.perform { try await $0.accounts.save(account) }
     }
 
-    func find(id: UUID) async -> Account? {
-        await unitOfWork.store.accounts.find(id: id)
+    func query(id: UUID, includeDeleted: Bool) async throws -> Account? {
+        try await unitOfWork.store.accounts.query(id: id, includeDeleted: includeDeleted)
+    }
+
+    func query(_ query: AccountQuery) async throws -> [Account] {
+        try await unitOfWork.store.accounts.query(query)
     }
 
     func delete(_ account: DeletedAccount) async throws {
