@@ -11,3 +11,6 @@ archive/
 # Swift Package Manager
 .build
 .swiftpm/
+
+# Harness
+.grok/
