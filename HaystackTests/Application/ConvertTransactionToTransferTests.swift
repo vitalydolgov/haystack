@@ -270,4 +270,28 @@ struct ConvertTransactionToTransferTests {
         #expect(await transactions.find(id: transaction.id)?.type == .standard)
         #expect(await transactions.all().count == 1)
     }
+
+    @Test func failsWhenAmountIsZero() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        let counterpartAccount = try Account.make(type: .savings)
+        await accounts.save(account)
+        await accounts.save(counterpartAccount)
+        let transaction = try Transaction.make(accountID: account.id, amount: 10)
+        await transactions.save(transaction)
+
+        await #expect(throws: TransactionError.invalidAmount) {
+            try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
+                id: transaction.id,
+                accountID: account.id,
+                counterpartAccountID: counterpartAccount.id,
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                amount: 0
+            )
+        }
+        #expect(await transactions.find(id: transaction.id)?.type == .standard)
+        #expect(await transactions.all().count == 1)
+    }
 }

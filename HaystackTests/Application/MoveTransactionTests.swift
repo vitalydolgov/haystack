@@ -148,4 +148,40 @@ struct MoveTransactionTests {
         let stored = try #require(await transactions.find(id: transaction.id))
         #expect(stored.accountID == source.id)
     }
+
+    @Test func failsWhenTransfer() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let source = try Account.make()
+        let counterpart = try Account.make(name: "Savings", type: .savings)
+        let target = try Account.make(name: "Credit")
+        await accounts.save(source)
+        await accounts.save(counterpart)
+        await accounts.save(target)
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            accountID: source.id,
+            amount: -10,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            accountID: counterpart.id,
+            amount: 10,
+            type: .transfer,
+            transferID: transferID
+        )
+        await transactions.save(fromLeg)
+        await transactions.save(toLeg)
+
+        await #expect(throws: TransactionError.invalidType) {
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
+                id: fromLeg.id,
+                movingTo: target.id
+            )
+        }
+        #expect(await transactions.find(id: fromLeg.id)?.accountID == source.id)
+        #expect(await transactions.find(id: toLeg.id)?.accountID == counterpart.id)
+    }
 }
