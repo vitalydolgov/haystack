@@ -41,7 +41,7 @@ Views do not use SwiftData directly: reads come from query interfaces in the env
 
 ## Testing
 
-Do not write tests during implementation. Tests are a later pass, only when requested.
+Never write tests unless the user explicitly asks for them. That includes temporary tests, verification tests, and tests you plan to delete. Implementing a feature is not a request for tests.
 
 Each test covers one operation: assert the behavior in its name and the side effects it causes, but not fields the operation leaves untouched.
 
