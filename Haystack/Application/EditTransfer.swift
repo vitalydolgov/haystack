@@ -20,26 +20,46 @@ struct EditTransfer {
         guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: id) else {
             throw TransferError.notFound
         }
-        var (current, counterpart): (Transaction, Transaction)
+
+        // choose current leg
+        var (currentTx, counterpartTx): (Transaction, Transaction)
         switch accountID {
         case fromLeg.accountID:
-            (current, counterpart) = (fromLeg, toLeg)
+            (currentTx, counterpartTx) = (fromLeg, toLeg)
         case toLeg.accountID:
-            (current, counterpart) = (toLeg, fromLeg)
+            (currentTx, counterpartTx) = (toLeg, fromLeg)
         default:
             throw TransactionError.notFound
         }
-        try current.update(
+
+        // update transactions
+        try currentTx.update(
             date: date.asYearMonthDay(),
             amount: amount,
             notes: notes
         )
-        try counterpart.update(
+        try counterpartTx.update(
             date: date.asYearMonthDay(),
             amount: -amount,
             notes: notes
         )
-        try await store.transactions.save(current)
-        try await store.transactions.save(counterpart)
+        try await store.transactions.save(currentTx)
+        try await store.transactions.save(counterpartTx)
+
+        // replace outgoing leg
+        guard var fromAccount = try await store.accounts.query(id: fromLeg.accountID) else {
+            throw AccountError.notFound
+        }
+        fromAccount -= fromLeg
+        fromAccount += fromLeg.accountID == currentTx.accountID ? currentTx : counterpartTx
+        try await store.accounts.save(fromAccount)
+
+        // replace incoming leg
+        guard var toAccount = try await store.accounts.query(id: toLeg.accountID) else {
+            throw AccountError.notFound
+        }
+        toAccount -= toLeg
+        toAccount += toLeg.accountID == currentTx.accountID ? currentTx : counterpartTx
+        try await store.accounts.save(toAccount)
     }
 }

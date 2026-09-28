@@ -15,7 +15,6 @@ enum TransferError: Error, Equatable, Sendable {
 enum TransactionError: Error, Equatable, Sendable {
     case invalidAmount
     case invalidDate
-    case invalidType
     case notFound
 }
 

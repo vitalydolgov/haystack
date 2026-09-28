@@ -16,7 +16,7 @@ struct AddTransaction {
         notes: String = ""
     ) async throws -> Transaction {
         guard amount != 0 else { throw TransactionError.invalidAmount }
-        guard let account = try await store.accounts.query(id: accountID) else {
+        guard var account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
@@ -26,6 +26,8 @@ struct AddTransaction {
             amount: amount,
             notes: notes
         )
+        account += transaction
+        try await store.accounts.save(account)
         try await store.transactions.save(transaction)
         return transaction
     }

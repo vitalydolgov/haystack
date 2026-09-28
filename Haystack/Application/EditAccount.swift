@@ -13,8 +13,8 @@ struct EditAccount {
         guard var account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }
-        if !account.isClosed {
-            try await AdjustBalance(unitOfWork: unitOfWork).execute(id: id, to: workingBalance)
+        if !account.isClosed, account.balance != workingBalance {
+            account = try await AdjustBalance(unitOfWork: unitOfWork).execute(id: id, to: workingBalance)
         }
         try account.rename(name)
         account.notes = notes
