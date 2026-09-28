@@ -13,16 +13,16 @@ struct DurableTransactionRepository: TransactionRepository {
         try await unitOfWork.perform { try await $0.transactions.save(transaction) }
     }
 
-    func find(id: UUID) async -> Transaction? {
-        await unitOfWork.store.transactions.find(id: id)
+    func query(id: UUID) async throws -> Transaction? {
+        try await unitOfWork.store.transactions.query(id: id)
     }
 
-    func findTransfer(id: UUID) async -> (Transaction, Transaction)? {
-        await unitOfWork.store.transactions.findTransfer(id: id)
+    func query(_ query: TransactionQuery) async throws -> [Transaction] {
+        try await unitOfWork.store.transactions.query(query)
     }
 
-    func find(accountID: UUID) async -> [Transaction] {
-        await unitOfWork.store.transactions.find(accountID: accountID)
+    func queryTransfer(id: UUID) async throws -> (Transaction, Transaction)? {
+        try await unitOfWork.store.transactions.queryTransfer(id: id)
     }
 
     func delete(_ transaction: DeletedTransaction) async throws {

@@ -38,7 +38,7 @@ struct ConvertTransferToTransactionTests {
             notes: "Coffee"
         )
 
-        let stored = try #require(await transactions.find(id: fromLeg.id))
+        let stored = try #require(await transactions.query(id: fromLeg.id))
         #expect(stored.accountID == fromAccount.id)
         #expect(stored.type == .standard)
         #expect(stored.transferID == nil)
@@ -46,7 +46,7 @@ struct ConvertTransferToTransactionTests {
         #expect(stored.notes == "Coffee")
         #expect(stored.date == date.asYearMonthDay())
 
-        #expect(await transactions.find(id: toLeg.id) == nil)
+        #expect(await transactions.query(id: toLeg.id) == nil)
         #expect(await transactions.deleted(id: toLeg.id) != nil)
         #expect(await transactions.all().count == 1)
     }
@@ -82,11 +82,11 @@ struct ConvertTransferToTransactionTests {
             amount: 12.5
         )
 
-        let stored = try #require(await transactions.find(id: toLeg.id))
+        let stored = try #require(await transactions.query(id: toLeg.id))
         #expect(stored.accountID == toAccount.id)
         #expect(stored.type == .standard)
         #expect(stored.transferID == nil)
-        #expect(await transactions.find(id: fromLeg.id) == nil)
+        #expect(await transactions.query(id: fromLeg.id) == nil)
     }
 
     @Test func movesKeptLegWhenAccountDiffers() async throws {
@@ -123,10 +123,10 @@ struct ConvertTransferToTransactionTests {
             amount: -12.5
         )
 
-        let stored = try #require(await transactions.find(id: fromLeg.id))
+        let stored = try #require(await transactions.query(id: fromLeg.id))
         #expect(stored.accountID == targetAccount.id)
         #expect(stored.type == .standard)
-        #expect(await transactions.find(id: toLeg.id) == nil)
+        #expect(await transactions.query(id: toLeg.id) == nil)
     }
 
     // MARK: Errors
@@ -166,8 +166,8 @@ struct ConvertTransferToTransactionTests {
                 amount: 10
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.type == .transfer)
-        #expect(await transactions.find(id: toLeg.id)?.type == .transfer)
+        #expect(await transactions.query(id: fromLeg.id)?.type == .transfer)
+        #expect(await transactions.query(id: toLeg.id)?.type == .transfer)
     }
 
     @Test func failsWhenAccountIsMissing() async throws {
@@ -222,8 +222,8 @@ struct ConvertTransferToTransactionTests {
                 amount: -10
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.transferID == transferID)
-        #expect(await transactions.find(id: toLeg.id)?.transferID == transferID)
+        #expect(await transactions.query(id: fromLeg.id)?.transferID == transferID)
+        #expect(await transactions.query(id: toLeg.id)?.transferID == transferID)
     }
 
     @Test func failsWhenAmountIsZero() async throws {
@@ -251,7 +251,7 @@ struct ConvertTransferToTransactionTests {
                 amount: 0
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.type == .transfer)
-        #expect(await transactions.find(id: toLeg.id)?.type == .transfer)
+        #expect(await transactions.query(id: fromLeg.id)?.type == .transfer)
+        #expect(await transactions.query(id: toLeg.id)?.type == .transfer)
     }
 }

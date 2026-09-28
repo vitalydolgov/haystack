@@ -13,7 +13,7 @@ struct AdjustBalanceTests {
         try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
         let stored = try #require(try await accounts.query(id: account.id))
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 25)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 25)
     }
 
     @Test func recordsAnAdjustment() async throws {
@@ -26,7 +26,7 @@ struct AdjustBalanceTests {
         try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
 
-        let recorded = await transactions.find(accountID: account.id)
+        let recorded = await transactions.query(.account(account.id))
         #expect(recorded.map(\.type) == [.adjustment])
     }
 
@@ -41,7 +41,7 @@ struct AdjustBalanceTests {
         try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
 
-        let recorded = await transactions.find(accountID: account.id)
+        let recorded = await transactions.query(.account(account.id))
         #expect(recorded.count == 1)
         #expect(recorded.map(\.type) == [.standard])
     }
@@ -60,7 +60,7 @@ struct AdjustBalanceTests {
                 .execute(id: account.id, to: 10)
         }
         let stored = try #require(try await accounts.query(id: account.id))
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 0)
     }
 
     @Test func failsWhenMissing() async {

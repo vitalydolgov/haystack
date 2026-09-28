@@ -10,21 +10,28 @@ actor InMemoryTransactionRepository: TransactionRepository {
         transactions[transaction.id] = transaction
     }
 
-    func find(id: UUID) -> Transaction? {
+    func query(id: UUID) -> Transaction? {
         transactions[id]
     }
 
-    func findTransfer(id: UUID) -> (Transaction, Transaction)? {
+    func query(_ query: TransactionQuery) -> [Transaction] {
+        switch query {
+        case .account(let accountID):
+            transactions.values
+                .filter { $0.accountID == accountID }
+                .sorted { Transaction.date(from: $0.date) > Transaction.date(from: $1.date) }
+        case .all:
+            Array(transactions.values)
+        }
+    }
+
+    func queryTransfer(id: UUID) -> (Transaction, Transaction)? {
         let legs = transactions.values.filter { $0.transferID == id && tombstones[$0.id] == nil }
         guard legs.count == 2 else { return nil }
         let fromLeg = legs.first { $0.amount < 0 }
         let toLeg = legs.first { $0.amount > 0 }
         guard let fromLeg = fromLeg, let toLeg = toLeg else { return nil }
         return (fromLeg, toLeg)
-    }
-
-    func find(accountID: UUID) -> [Transaction] {
-        transactions.values.filter { $0.accountID == accountID }
     }
 
     func delete(_ transaction: DeletedTransaction) {

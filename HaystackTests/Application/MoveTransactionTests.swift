@@ -23,14 +23,14 @@ struct MoveTransactionTests {
             id: transaction.id,
             movingTo: target.id
         )
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
 
         #expect(stored.accountID == target.id)
         #expect(stored.date == (year: 2026, month: 8, day: 31))
         #expect(stored.amount == -12.5)
         #expect(stored.notes == "Coffee")
         #expect(stored.type == .standard)
-        #expect(await transactions.find(accountID: source.id).isEmpty)
+        #expect(await transactions.query(.account(source.id)).isEmpty)
         #expect(await transactions.all().count == 1)
     }
 
@@ -47,7 +47,7 @@ struct MoveTransactionTests {
             id: transaction.id,
             movingTo: account.id
         )
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == account.id)
     }
 
@@ -83,8 +83,8 @@ struct MoveTransactionTests {
                 movingTo: target.id
             )
         }
-        #expect(await transactions.find(id: transaction.id) == nil)
-        #expect(await transactions.find(accountID: target.id).isEmpty)
+        #expect(await transactions.query(id: transaction.id) == nil)
+        #expect(await transactions.query(.account(target.id)).isEmpty)
     }
 
     @Test func failsWhenTheTargetIsMissing() async throws {
@@ -102,7 +102,7 @@ struct MoveTransactionTests {
                 movingTo: UUID()
             )
         }
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == source.id)
     }
 
@@ -124,7 +124,7 @@ struct MoveTransactionTests {
                 movingTo: target.id
             )
         }
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == source.id)
     }
 
@@ -145,7 +145,7 @@ struct MoveTransactionTests {
                 movingTo: target.id
             )
         }
-        let stored = try #require(await transactions.find(id: transaction.id))
+        let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == source.id)
     }
 
@@ -181,7 +181,7 @@ struct MoveTransactionTests {
                 movingTo: target.id
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.accountID == source.id)
-        #expect(await transactions.find(id: toLeg.id)?.accountID == counterpart.id)
+        #expect(await transactions.query(id: fromLeg.id)?.accountID == source.id)
+        #expect(await transactions.query(id: toLeg.id)?.accountID == counterpart.id)
     }
 }

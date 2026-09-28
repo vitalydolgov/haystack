@@ -33,8 +33,8 @@ struct EditTransferTests {
             notes: "Rent"
         )
 
-        let storedFrom = try #require(await transactions.find(id: fromLeg.id))
-        let storedTo = try #require(await transactions.find(id: toLeg.id))
+        let storedFrom = try #require(await transactions.query(id: fromLeg.id))
+        let storedTo = try #require(await transactions.query(id: toLeg.id))
         #expect(storedFrom.date == date.asYearMonthDay())
         #expect(storedFrom.amount == -20)
         #expect(storedFrom.notes == "Rent")
@@ -69,8 +69,8 @@ struct EditTransferTests {
             amount: 30
         )
 
-        #expect(await transactions.find(id: toLeg.id)?.amount == 30)
-        #expect(await transactions.find(id: fromLeg.id)?.amount == -30)
+        #expect(await transactions.query(id: toLeg.id)?.amount == 30)
+        #expect(await transactions.query(id: fromLeg.id)?.amount == -30)
     }
 
     // MARK: Validation
@@ -102,8 +102,8 @@ struct EditTransferTests {
                 amount: 0
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.amount == -10)
-        #expect(await transactions.find(id: toLeg.id)?.amount == 10)
+        #expect(await transactions.query(id: fromLeg.id)?.amount == -10)
+        #expect(await transactions.query(id: toLeg.id)?.amount == 10)
     }
 
     @Test func failsWhenNotFound() async {
@@ -137,7 +137,7 @@ struct EditTransferTests {
                 amount: 10
             )
         }
-        #expect(await transactions.find(id: fromLeg.id)?.amount == -10)
-        #expect(await transactions.find(id: toLeg.id)?.amount == 10)
+        #expect(await transactions.query(id: fromLeg.id)?.amount == -10)
+        #expect(await transactions.query(id: toLeg.id)?.amount == 10)
     }
 }

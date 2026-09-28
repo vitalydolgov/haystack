@@ -13,7 +13,7 @@ struct CloseAccountTests {
 
         try await CloseAccount(unitOfWork: unitOfWork).execute(id: account.id)
         let stored = try #require(try await accounts.query(id: account.id))
-        #expect(stored.balance(await transactions.find(accountID: stored.id)) == 0)
+        #expect(stored.balance(await transactions.query(.account(stored.id))) == 0)
         #expect(stored.isClosed)
     }
 
