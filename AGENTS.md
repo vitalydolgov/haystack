@@ -39,7 +39,9 @@ Do not call `unitOfWork.perform` by hand in use cases. Annotate `execute` with `
 
 Do not write tests during implementation. Tests are a later pass, only when requested.
 
-Each test asserts only the behavior in its name. Do not snapshot every field after an operation unless that is the point of the test.
+Each test covers one operation: assert the behavior in its name and the side effects it causes, but not fields the operation leaves untouched.
+
+Do not use articles (a, an, the) in test names.
 
 **Domain.** Exercise types in memory. Cover identity and field invariants, then group remaining tests by operation. Inside each group, put the happy path first.
 
