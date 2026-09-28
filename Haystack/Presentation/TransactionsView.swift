@@ -1,28 +1,18 @@
-import SwiftData
 import SwiftUI
 
 struct TransactionsView: View {
     let accountID: UUID
-    @Query private var transactions: [TransactionRecord]
 
+    @State private var transactions: [Transaction] = []
     @State private var accountName = ""
-    @State private var deletingTransaction: TransactionRecord?
+    @State private var deletingTransaction: Transaction?
     @State private var deleteID: UUID?
     @State private var deleteTransferID: UUID?
 
     @Environment(Navigator.self) private var navigator
     @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.accountRepository) private var accountRepository
-
-    init(accountID: UUID) {
-        self.accountID = accountID
-        _transactions = Query(
-            filter: #Predicate<TransactionRecord> {
-                $0.accountID == accountID && $0.deletedAt == nil
-            },
-            sort: [SortDescriptor(\.packedDate, order: .reverse)]
-        )
-    }
+    @Environment(\.transactionRepository) private var transactionRepository
 
     // TODO: fetch currency code
     private var currencyCode: String {
@@ -86,9 +76,11 @@ struct TransactionsView: View {
         .task(id: deleteID) {
             guard let deleteID else { return }
             await delete(id: deleteID)
+            transactions = await transactions()
         }
         .task(id: navigator.sheet) {
             accountName = await accountName()
+            transactions = await transactions()
         }
         .task {
             #if DEBUG
@@ -131,6 +123,16 @@ struct TransactionsView: View {
         }
     }
 
+    private func transactions() async -> [Transaction] {
+        do {
+            guard let transactionRepository else { return [] }
+            return try await transactionRepository.query(.account(accountID))
+        } catch {
+            print("error: \(error)")
+            return []
+        }
+    }
+
     private func delete(id: UUID) async {
         guard let unitOfWork else { return }
         do {
@@ -144,14 +146,7 @@ struct TransactionsView: View {
         }
     }
 
-    private func dateText(_ transaction: TransactionRecord) -> String {
-        let date = transaction.unpackedDate
-        var components = DateComponents()
-        components.calendar = Calendar(identifier: .gregorian)
-        components.year = date.year
-        components.month = date.month
-        components.day = date.day
-        guard let value = components.date else { return "" }
-        return value.formatted(date: .abbreviated, time: .omitted)
+    private func dateText(_ transaction: Transaction) -> String {
+        Transaction.date(from: transaction.date).formatted(date: .abbreviated, time: .omitted)
     }
 }

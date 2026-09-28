@@ -21,6 +21,7 @@ struct HaystackApp: App {
             HaystackView()
                 .environment(\.unitOfWork, unitOfWork)
                 .environment(\.accountRepository, unitOfWork.store.accounts)
+                .environment(\.transactionRepository, unitOfWork.store.transactions)
         }
         .modelContainer(container)
     }

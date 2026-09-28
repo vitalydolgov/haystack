@@ -1,9 +1,7 @@
-import SwiftData
 import SwiftUI
 
 struct EditAccountSheet: View {
     private let accountID: UUID
-    @Query private var transactions: [TransactionRecord]
     @State private var isClosed = false
     @State private var balance: Decimal = 0
     @State private var name = ""
@@ -14,15 +12,11 @@ struct EditAccountSheet: View {
 
     @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.accountRepository) private var accountRepository
+    @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
 
     init(accountID: UUID) {
         self.accountID = accountID
-        _transactions = Query(
-            filter: #Predicate<TransactionRecord> {
-                $0.accountID == accountID && $0.deletedAt == nil
-            }
-        )
     }
 
     private var parsedBalance: Decimal? {
@@ -87,9 +81,7 @@ struct EditAccountSheet: View {
                 name = account.name
                 notes = account.notes
                 isClosed = account.isClosed
-                let current = transactions.reduce(into: 0 as Decimal) { total, transaction in
-                    total += transaction.amount
-                }
+                let current = await workingBalance()
                 balance = current
                 balanceText = current.formatted(.number)
             }
@@ -103,6 +95,19 @@ struct EditAccountSheet: View {
         } catch {
             print("error: \(error)")
             return nil
+        }
+    }
+
+    private func workingBalance() async -> Decimal {
+        do {
+            guard let transactionRepository else { return 0 }
+            let transactions = try await transactionRepository.query(.account(accountID))
+            return transactions.reduce(into: 0 as Decimal) { total, transaction in
+                total += transaction.amount
+            }
+        } catch {
+            print("error: \(error)")
+            return 0
         }
     }
 

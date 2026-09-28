@@ -1,15 +1,14 @@
-import SwiftData
 import SwiftUI
 
 struct AccountsView: View {
-    @Query(filter: #Predicate<TransactionRecord> { $0.deletedAt == nil })
-    private var transactions: [TransactionRecord]
     @State private var accounts: [Account] = []
+    @State private var transactions: [Transaction] = []
     @State private var pendingCloseID: UUID?
 
     @Environment(Navigator.self) private var navigator
     @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.accountRepository) private var accountRepository
+    @Environment(\.transactionRepository) private var transactionRepository
 
     private var openAccounts: [Account] {
         accounts.filter { !$0.isClosed }
@@ -62,6 +61,7 @@ struct AccountsView: View {
         }
         .task(id: navigator.sheet) {
             accounts = await accounts()
+            transactions = await transactions()
         }
         .task {
             #if DEBUG
@@ -74,6 +74,16 @@ struct AccountsView: View {
         do {
             guard let accountRepository else { return [] }
             return try await accountRepository.query(.includingClosed)
+        } catch {
+            print("error: \(error)")
+            return []
+        }
+    }
+
+    private func transactions() async -> [Transaction] {
+        do {
+            guard let transactionRepository else { return [] }
+            return try await transactionRepository.query(.all)
         } catch {
             print("error: \(error)")
             return []
@@ -134,6 +144,7 @@ struct AccountsView: View {
         Task {
             try await CloseAccount(unitOfWork: unitOfWork).execute(id: id)
             accounts = await accounts()
+            transactions = await transactions()
         }
     }
 
@@ -142,6 +153,7 @@ struct AccountsView: View {
         Task {
             try await ReopenAccount(unitOfWork: unitOfWork).execute(id: id)
             accounts = await accounts()
+            transactions = await transactions()
         }
     }
 }
