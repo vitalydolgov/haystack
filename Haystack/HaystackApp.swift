@@ -20,6 +20,7 @@ struct HaystackApp: App {
         WindowGroup {
             HaystackView()
                 .environment(\.unitOfWork, unitOfWork)
+                .environment(\.accountRepository, unitOfWork.store.accounts)
         }
         .modelContainer(container)
     }

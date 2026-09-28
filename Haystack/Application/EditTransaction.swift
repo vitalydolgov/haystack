@@ -26,7 +26,7 @@ struct EditTransaction {
         guard existing.accountID == accountID else {
             throw TransactionError.notFound
         }
-        guard let account = await store.accounts.find(id: accountID) else {
+        guard let account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else {

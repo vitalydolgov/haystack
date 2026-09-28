@@ -16,7 +16,7 @@ struct MoveTransaction {
         guard transaction.type != .transfer else {
             throw TransactionError.invalidType
         }
-        guard let targetAccount = await store.accounts.find(id: accountID) else {
+        guard let targetAccount = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
         guard !targetAccount.isClosed else {

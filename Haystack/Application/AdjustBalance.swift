@@ -6,7 +6,7 @@ struct AdjustBalance {
 
     @Transactional
     func execute(id: UUID, to balance: Decimal, on date: Date = .now) async throws {
-        guard let account = await store.accounts.find(id: id) else {
+        guard let account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }

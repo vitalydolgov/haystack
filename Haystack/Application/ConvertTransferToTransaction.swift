@@ -31,7 +31,7 @@ struct ConvertTransferToTransaction {
             throw TransactionError.notFound
         }
         let destinationID = destinationAccountID ?? keptLeg.accountID
-        guard let account = await store.accounts.find(id: destinationID) else {
+        guard let account = try await store.accounts.query(id: destinationID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else {

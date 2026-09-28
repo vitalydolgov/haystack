@@ -25,10 +25,10 @@ struct ConvertTransactionToTransfer {
               existing.type == .standard else {
             throw TransactionError.notFound
         }
-        guard let account = await store.accounts.find(id: accountID) else {
+        guard let account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
-        guard let counterpartAccount = await store.accounts.find(id: counterpartAccountID) else {
+        guard let counterpartAccount = try await store.accounts.query(id: counterpartAccountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
