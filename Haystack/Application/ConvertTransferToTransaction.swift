@@ -17,6 +17,7 @@ struct ConvertTransferToTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws {
+        guard amount != 0 else { throw TransactionError.invalidAmount }
         guard let (fromLeg, toLeg) = await store.transactions.findTransfer(id: transferID) else {
             throw TransferError.notFound
         }

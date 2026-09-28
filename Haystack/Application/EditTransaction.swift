@@ -16,8 +16,14 @@ struct EditTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws {
-        guard let existing = await store.transactions.find(id: id),
-              existing.accountID == accountID else {
+        guard amount != 0 else { throw TransactionError.invalidAmount }
+        guard let existing = await store.transactions.find(id: id) else {
+            throw TransactionError.notFound
+        }
+        guard existing.type != .transfer else {
+            throw TransactionError.invalidType
+        }
+        guard existing.accountID == accountID else {
             throw TransactionError.notFound
         }
         guard let account = await store.accounts.find(id: accountID) else {
@@ -40,4 +46,3 @@ struct EditTransaction {
         return (year: c.year!, month: c.month!, day: c.day!)
     }
 }
-// TODO: guard against .transfer transactions

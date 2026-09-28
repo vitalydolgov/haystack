@@ -9,7 +9,9 @@ struct DeleteTransaction {
         guard let transaction = await store.transactions.find(id: id) else {
             throw TransactionError.notFound
         }
+        guard transaction.type != .transfer else {
+            throw TransactionError.invalidType
+        }
         try await store.transactions.delete(transaction.delete(at: date))
     }
 }
-// TODO: guard against .transfer transactions

@@ -13,7 +13,7 @@ struct ReplaceTransfer {
         amount: Decimal,
         notes: String = ""
     ) async throws {
-        guard amount > 0 else { throw TransferError.invalid }
+        guard amount > 0 else { throw TransferError.invalidAmount }
         try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: id)
         _ = try await AddTransfer(unitOfWork: unitOfWork).execute(
             fromAccountID: fromAccountID,

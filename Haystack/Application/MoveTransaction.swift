@@ -13,6 +13,9 @@ struct MoveTransaction {
         guard let transaction = await store.transactions.find(id: id) else {
             throw TransactionError.notFound
         }
+        guard transaction.type != .transfer else {
+            throw TransactionError.invalidType
+        }
         guard let targetAccount = await store.accounts.find(id: accountID) else {
             throw AccountError.notFound
         }
@@ -31,4 +34,3 @@ struct MoveTransaction {
         try await store.transactions.save(moved)
     }
 }
-// TODO: guard against .transfer transactions
