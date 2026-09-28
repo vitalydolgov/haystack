@@ -57,7 +57,15 @@ struct EditTransactionSheet: View {
     }
 
     private var isMove: Bool {
-        selectedAccountID != accountID
+        switch mode {
+        case .plain:
+            return selectedAccountID != accountID
+        case .transfer:
+            guard let counterpart = counterparts.first else {
+                return false
+            }
+            return selectedAccountID != accountID || counterpart.accountID != transferAccountID
+        }
     }
 
     private var isTransfer: Bool {
@@ -147,7 +155,7 @@ struct EditTransactionSheet: View {
         case .transfer where isConversion:
             ConvertTransferToTransaction.canExecute(amount: signedAmount)
         case .transfer:
-            true
+            EditTransfer.canExecute(amount: signedAmount)
         }
     }
 
@@ -169,7 +177,7 @@ struct EditTransactionSheet: View {
                 guard MoveTransaction.canExecute(fromAccountID: accountID, toAccountID: selectedAccountID) else { return }
                 try await MoveTransaction(unitOfWork: unitOfWork).execute(
                     id: transactionID,
-                    toAccountID: selectedAccountID
+                    movingTo: selectedAccountID
                 )
             case .plain(let transactionID):
                 guard EditTransaction.canExecute(amount: signedAmount) else { return }
@@ -190,10 +198,31 @@ struct EditTransactionSheet: View {
                     amount: signedAmount,
                     notes: notes
                 )
-            case .transfer:
-                // TODO: edit transfer in place
-                // TODO: edit transfer with move
-                fatalError()
+            case .transfer(let transferID) where isMove:
+                guard EditTransfer.canExecute(amount: signedAmount) else {
+                    saveID = nil
+                    return
+                }
+                try await ReplaceTransfer(unitOfWork: unitOfWork).execute(
+                    id: transferID,
+                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
+                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    date: date,
+                    amount: abs(signedAmount),
+                    notes: notes
+                )
+            case .transfer(let transferID):
+                guard EditTransfer.canExecute(amount: signedAmount) else {
+                    saveID = nil
+                    return
+                }
+                try await EditTransfer(unitOfWork: unitOfWork).execute(
+                    id: transferID,
+                    accountID: accountID,
+                    date: date,
+                    amount: signedAmount,
+                    notes: notes
+                )
             }
             dismiss()
         } catch {

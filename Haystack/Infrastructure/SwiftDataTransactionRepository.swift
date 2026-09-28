@@ -44,7 +44,10 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         let records = (try? modelContext.fetch(descriptor)) ?? []
         let transactions = records.compactMap { try? $0.toTransaction() }
         guard transactions.count == 2 else { return nil }
-        return (transactions[0], transactions[1])
+        let outflow = transactions.first { $0.amount < 0 }
+        let inflow = transactions.first { $0.amount > 0 }
+        guard let outflow, let inflow else { return nil }
+        return (outflow, inflow)
     }
 
     private func record(id: UUID) -> TransactionRecord? {

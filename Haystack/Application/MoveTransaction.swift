@@ -9,21 +9,20 @@ struct MoveTransaction {
     }
 
     @Transactional
-    func execute(id: UUID, toAccountID: UUID) async throws {
+    func execute(id: UUID, movingTo accountID: UUID) async throws {
         guard let transaction = await store.transactions.find(id: id) else {
             throw TransactionError.notFound
         }
-        guard let targetAccount = await store.accounts.find(id: toAccountID) else {
+        guard let targetAccount = await store.accounts.find(id: accountID) else {
             throw AccountError.notFound
         }
         guard !targetAccount.isClosed else {
             throw AccountError.closed
         }
-        guard transaction.accountID != toAccountID else { return }
-
+        guard transaction.accountID != accountID else { return }
         let moved = try Transaction(
             id: transaction.id,
-            accountID: toAccountID,
+            accountID: accountID,
             date: transaction.date,
             amount: transaction.amount,
             notes: transaction.notes,

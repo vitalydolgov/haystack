@@ -21,7 +21,7 @@ struct MoveTransactionTests {
 
         try await MoveTransaction(unitOfWork: unitOfWork).execute(
             id: transaction.id,
-            toAccountID: target.id
+            movingTo: target.id
         )
         let stored = try #require(await transactions.find(id: transaction.id))
 
@@ -45,7 +45,7 @@ struct MoveTransactionTests {
 
         try await MoveTransaction(unitOfWork: unitOfWork).execute(
             id: transaction.id,
-            toAccountID: account.id
+            movingTo: account.id
         )
         let stored = try #require(await transactions.find(id: transaction.id))
         #expect(stored.accountID == account.id)
@@ -60,7 +60,7 @@ struct MoveTransactionTests {
         await #expect(throws: TransactionError.notFound) {
             try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: UUID(),
-                toAccountID: UUID()
+                movingTo: UUID()
             )
         }
     }
@@ -80,7 +80,7 @@ struct MoveTransactionTests {
         await #expect(throws: TransactionError.notFound) {
             try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
-                toAccountID: target.id
+                movingTo: target.id
             )
         }
         #expect(await transactions.find(id: transaction.id) == nil)
@@ -99,7 +99,7 @@ struct MoveTransactionTests {
         await #expect(throws: AccountError.notFound) {
             try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
-                toAccountID: UUID()
+                movingTo: UUID()
             )
         }
         let stored = try #require(await transactions.find(id: transaction.id))
@@ -121,7 +121,7 @@ struct MoveTransactionTests {
         await #expect(throws: AccountError.notFound) {
             try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
-                toAccountID: target.id
+                movingTo: target.id
             )
         }
         let stored = try #require(await transactions.find(id: transaction.id))
@@ -142,7 +142,7 @@ struct MoveTransactionTests {
         await #expect(throws: AccountError.closed) {
             try await MoveTransaction(unitOfWork: unitOfWork).execute(
                 id: transaction.id,
-                toAccountID: target.id
+                movingTo: target.id
             )
         }
         let stored = try #require(await transactions.find(id: transaction.id))

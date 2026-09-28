@@ -7,6 +7,7 @@ enum TransactionType: String, Codable, Sendable, Equatable, CaseIterable {
 }
 
 enum TransferError: Error, Equatable, Sendable {
+    case invalid
     case sameAccount
     case notFound
 }
