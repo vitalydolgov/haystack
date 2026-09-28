@@ -95,7 +95,6 @@ struct TransactionForm: View {
 
     private func accounts() async -> [Account] {
         do {
-            guard let accountRepository else { return [] }
             return try await accountRepository.query(.open)
         } catch {
             print("error: \(error)")

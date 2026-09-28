@@ -90,7 +90,6 @@ struct EditAccountSheet: View {
 
     private func account() async -> Account? {
         do {
-            guard let accountRepository else { return nil }
             return try await accountRepository.query(id: accountID)
         } catch {
             print("error: \(error)")
@@ -100,7 +99,6 @@ struct EditAccountSheet: View {
 
     private func workingBalance() async -> Decimal {
         do {
-            guard let transactionRepository else { return 0 }
             let transactions = try await transactionRepository.query(.account(accountID))
             return transactions.reduce(into: 0 as Decimal) { total, transaction in
                 total += transaction.amount
@@ -116,7 +114,6 @@ struct EditAccountSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork else { return }
         guard EditAccount.canExecute(name: name) else { return }
         do {
             try await EditAccount(unitOfWork: unitOfWork).execute(
@@ -140,7 +137,6 @@ struct EditAccountSheet: View {
     }
 
     private func close() {
-        guard let unitOfWork else { return }
         Task {
             try await CloseAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
@@ -148,7 +144,6 @@ struct EditAccountSheet: View {
     }
 
     private func reopen() {
-        guard let unitOfWork else { return }
         Task {
             try await ReopenAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()
@@ -157,7 +152,6 @@ struct EditAccountSheet: View {
 
     private func delete() {
         // TODO: warn about transferring transactions onto another account
-        guard let unitOfWork else { return }
         Task {
             try await DeleteAccount(unitOfWork: unitOfWork).execute(id: accountID)
             dismiss()

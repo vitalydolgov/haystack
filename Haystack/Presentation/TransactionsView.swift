@@ -112,7 +112,6 @@ struct TransactionsView: View {
 
     private func accountName() async -> String {
         do {
-            guard let accountRepository else { return "" }
             guard let account = try await accountRepository.query(id: accountID) else {
                 return ""
             }
@@ -125,7 +124,6 @@ struct TransactionsView: View {
 
     private func transactions() async -> [Transaction] {
         do {
-            guard let transactionRepository else { return [] }
             return try await transactionRepository.query(.account(accountID))
         } catch {
             print("error: \(error)")
@@ -134,7 +132,6 @@ struct TransactionsView: View {
     }
 
     private func delete(id: UUID) async {
-        guard let unitOfWork else { return }
         do {
             if let deleteTransferID {
                 try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: deleteTransferID)

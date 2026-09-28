@@ -109,7 +109,6 @@ struct EditTransactionSheet: View {
 
     private func transaction(id: UUID) async -> Transaction? {
         do {
-            guard let transactionRepository else { return nil }
             return try await transactionRepository.query(id: id)
         } catch {
             print("error: \(error)")
@@ -119,7 +118,6 @@ struct EditTransactionSheet: View {
 
     private func transfer(id: UUID) async -> (Transaction, Transaction)? {
         do {
-            guard let transactionRepository else { return nil }
             return try await transactionRepository.queryTransfer(id: id)
         } catch {
             print("error: \(error)")
@@ -162,7 +160,6 @@ struct EditTransactionSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork else { return }
         do {
             switch mode {
             case .plain(let transactionID) where isConversion:

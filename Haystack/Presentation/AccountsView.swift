@@ -72,7 +72,6 @@ struct AccountsView: View {
 
     private func accounts() async -> [Account] {
         do {
-            guard let accountRepository else { return [] }
             return try await accountRepository.query(.includingClosed)
         } catch {
             print("error: \(error)")
@@ -82,7 +81,6 @@ struct AccountsView: View {
 
     private func transactions() async -> [Transaction] {
         do {
-            guard let transactionRepository else { return [] }
             return try await transactionRepository.query(.all)
         } catch {
             print("error: \(error)")
@@ -140,7 +138,6 @@ struct AccountsView: View {
     }
 
     private func close(id: UUID) {
-        guard let unitOfWork else { return }
         Task {
             try await CloseAccount(unitOfWork: unitOfWork).execute(id: id)
             accounts = await accounts()
@@ -149,7 +146,6 @@ struct AccountsView: View {
     }
 
     private func reopen(id: UUID) {
-        guard let unitOfWork else { return }
         Task {
             try await ReopenAccount(unitOfWork: unitOfWork).execute(id: id)
             accounts = await accounts()

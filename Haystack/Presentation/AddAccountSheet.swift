@@ -55,7 +55,7 @@ struct AddAccountSheet: View {
     }
 
     private func save() async {
-        guard let unitOfWork, let type else { return }
+        guard let type else { return }
         let balance = parsedBalance ?? 0
         guard AddAccount.canExecute(name: name) else { return }
         do {
