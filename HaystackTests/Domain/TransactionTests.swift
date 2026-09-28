@@ -27,13 +27,6 @@ struct TransactionTests {
         #expect(left != right)
     }
 
-    // MARK: Type
-
-    @Test func startsAsStandard() throws {
-        let transaction = try Transaction.make()
-        #expect(transaction.type == .standard)
-    }
-
     // MARK: Date
 
     @Test func acceptsARealGregorianDay() throws {

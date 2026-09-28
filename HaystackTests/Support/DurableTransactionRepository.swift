@@ -17,6 +17,10 @@ struct DurableTransactionRepository: TransactionRepository {
         await unitOfWork.store.transactions.find(id: id)
     }
 
+    func findTransfer(id: UUID) async -> (Transaction, Transaction)? {
+        await unitOfWork.store.transactions.findTransfer(id: id)
+    }
+
     func find(accountID: UUID) async -> [Transaction] {
         await unitOfWork.store.transactions.find(accountID: accountID)
     }

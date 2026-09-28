@@ -11,6 +11,7 @@ enum Sheet: Hashable, Sendable, Identifiable {
     case editAccount(accountID: UUID)
     case addTransaction(accountID: UUID)
     case editTransaction(accountID: UUID, transactionID: UUID)
+    case editTransfer(accountID: UUID, transferID: UUID)
 
     var id: Self { self }
 }

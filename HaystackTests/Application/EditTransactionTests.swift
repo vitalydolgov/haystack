@@ -158,4 +158,53 @@ struct EditTransactionTests {
             )
         }
     }
+
+    @Test func failsWhenAmountIsZero() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        await accounts.save(account)
+        let transaction = try Transaction.make(accountID: account.id, amount: 10)
+        await transactions.save(transaction)
+
+        await #expect(throws: TransactionError.invalidAmount) {
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
+                id: transaction.id,
+                accountID: account.id,
+                date: .now,
+                amount: 0
+            )
+        }
+        #expect(await transactions.find(id: transaction.id)?.amount == 10)
+    }
+
+    @Test func failsWhenTransfer() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        await accounts.save(account)
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            accountID: account.id,
+            amount: -10,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        await transactions.save(fromLeg)
+        await transactions.save(toLeg)
+
+        await #expect(throws: TransactionError.invalidType) {
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
+                id: fromLeg.id,
+                accountID: account.id,
+                date: .now,
+                amount: -20
+            )
+        }
+        #expect(await transactions.find(id: fromLeg.id)?.amount == -10)
+        #expect(await transactions.find(id: toLeg.id)?.amount == 10)
+    }
 }

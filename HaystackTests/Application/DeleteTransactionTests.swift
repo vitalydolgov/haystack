@@ -41,4 +41,20 @@ struct DeleteTransactionTests {
         let stored = try #require(await transactions.deleted(id: transaction.id))
         #expect(stored.deletedAt == deletedAt)
     }
+
+    @Test func failsWhenTransfer() async throws {
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(amount: -10, type: .transfer, transferID: transferID)
+        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        await transactions.save(fromLeg)
+        await transactions.save(toLeg)
+
+        await #expect(throws: TransactionError.invalidType) {
+            try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: fromLeg.id)
+        }
+        #expect(await transactions.find(id: fromLeg.id) != nil)
+        #expect(await transactions.find(id: toLeg.id) != nil)
+    }
 }

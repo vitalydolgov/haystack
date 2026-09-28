@@ -9,6 +9,7 @@ final class TransactionRecord {
     var packedDate: Int
     var amount: Decimal
     var notes: String
+    var transferID: UUID?
     var deletedAt: Date?
 
     init(
@@ -18,6 +19,7 @@ final class TransactionRecord {
         packedDate: Int,
         amount: Decimal,
         notes: String,
+        transferID: UUID? = nil,
         deletedAt: Date?
     ) {
         self.id = id
@@ -26,6 +28,7 @@ final class TransactionRecord {
         self.packedDate = packedDate
         self.amount = amount
         self.notes = notes
+        self.transferID = transferID
         self.deletedAt = deletedAt
     }
 
@@ -37,6 +40,7 @@ final class TransactionRecord {
             packedDate: Self.packedDate(from: transaction.date),
             amount: transaction.amount,
             notes: transaction.notes,
+            transferID: transaction.transferID,
             deletedAt: nil
         )
     }
@@ -48,7 +52,8 @@ final class TransactionRecord {
             date: unpackedDate,
             amount: amount,
             notes: notes,
-            type: type
+            type: type,
+            transferID: transferID
         )
     }
 
@@ -58,6 +63,7 @@ final class TransactionRecord {
         packedDate = Self.packedDate(from: transaction.date)
         amount = transaction.amount
         notes = transaction.notes
+        transferID = transaction.transferID
     }
 
     var unpackedDate: (year: Int, month: Int, day: Int) {

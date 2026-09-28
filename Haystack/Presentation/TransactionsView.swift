@@ -10,6 +10,7 @@ struct TransactionsView: View {
 
     @State private var deletingTransaction: TransactionRecord?
     @State private var deleteID: UUID?
+    @State private var deleteTransferID: UUID?
 
     init(accountID: UUID) {
         self.accountID = accountID
@@ -51,9 +52,15 @@ struct TransactionsView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    navigator.present(
-                        .editTransaction(accountID: accountID, transactionID: transaction.id)
-                    )
+                    if let transferID = transaction.transferID {
+                        navigator.present(
+                            .editTransfer(accountID: accountID, transferID: transferID)
+                        )
+                    } else {
+                        navigator.present(
+                            .editTransaction(accountID: accountID, transactionID: transaction.id)
+                        )
+                    }
                 }
                 .swipeActions(edge: .leading) {
                     // TODO: clear/unclear
@@ -75,6 +82,7 @@ struct TransactionsView: View {
         }
         .alert("Delete Transaction", isPresented: isConfirmingDelete, presenting: deletingTransaction) { transaction in
             Button("Delete", role: .destructive) {
+                deleteTransferID = transaction.transferID
                 deleteID = transaction.id
             }
         } message: { _ in
@@ -115,7 +123,11 @@ struct TransactionsView: View {
     private func delete(id: UUID) async {
         guard let unitOfWork else { return }
         do {
-            try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: id)
+            if let deleteTransferID {
+                try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: deleteTransferID)
+            } else {
+                try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: id)
+            }
         } catch {
             deleteID = nil
         }

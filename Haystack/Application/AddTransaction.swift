@@ -15,13 +15,14 @@ struct AddTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws -> Transaction {
+        guard amount != 0 else { throw TransactionError.invalidAmount }
         guard let account = await store.accounts.find(id: accountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
         let transaction = try Transaction(
             accountID: accountID,
-            date: date,
+            date: date.asYearMonthDay(),
             amount: amount,
             notes: notes
         )

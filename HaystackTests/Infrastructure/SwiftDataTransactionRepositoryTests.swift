@@ -25,6 +25,7 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(stored.amount == -42.5)
         #expect(stored.notes == "Groceries")
         #expect(stored.type == .adjustment)
+        #expect(stored.transferID == nil)
     }
 
     @Test func updatesAnExistingTransactionInPlace() async throws {
@@ -122,6 +123,60 @@ struct SwiftDataTransactionRepositoryTests {
         try await transactions.delete(rent.delete(at: Date(timeIntervalSince1970: 1_700_000_000)))
 
         #expect(await transactions.find(accountID: accountID).isEmpty)
+    }
+
+    // MARK: Find Transfer
+
+    @Test func findsTransferByTransferID() async throws {
+        let (container, writer) = try await makeStore()
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            accountID: UUID(),
+            amount: -50,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            accountID: UUID(),
+            amount: 50,
+            type: .transfer,
+            transferID: transferID
+        )
+        try await writer.save(fromLeg)
+        try await writer.save(toLeg)
+
+        let (foundFrom, foundTo) = try #require(await reader(container).findTransfer(id: transferID))
+        #expect(foundFrom.id == fromLeg.id)
+        #expect(foundTo.id == toLeg.id)
+        #expect(foundFrom.transferID == transferID)
+        #expect(foundTo.transferID == transferID)
+    }
+
+    @Test func hidesDeletedTransferLeg() async throws {
+        let (container, writer) = try await makeStore()
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            accountID: UUID(),
+            amount: -50,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            accountID: UUID(),
+            amount: 50,
+            type: .transfer,
+            transferID: transferID
+        )
+        try await writer.save(fromLeg)
+        try await writer.save(toLeg)
+        try await writer.delete(fromLeg.delete(at: Date()))
+
+        #expect(await reader(container).findTransfer(id: transferID) == nil)
+    }
+
+    @Test func returnsNilWhenTransferNotFound() async throws {
+        let (_, transactions) = try await makeStore()
+        #expect(await transactions.findTransfer(id: UUID()) == nil)
     }
 
     // MARK: Delete

@@ -84,4 +84,20 @@ struct AddTransactionTests {
         }
         #expect(await transactions.all().isEmpty)
     }
+
+    @Test func failsWhenAmountIsZero() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        await accounts.save(account)
+
+        await #expect(throws: TransactionError.invalidAmount) {
+            try await AddTransaction(unitOfWork: unitOfWork).execute(
+                accountID: account.id,
+                amount: 0
+            )
+        }
+        #expect(await transactions.all().isEmpty)
+    }
 }
