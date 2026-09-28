@@ -10,7 +10,7 @@ struct AdjustBalance {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
-        let existing = await store.transactions.find(accountID: id)
+        let existing = try await store.transactions.query(.account(id))
         let delta = balance - account.balance(existing)
         guard delta != 0 else { return }
         let transaction = try Transaction(

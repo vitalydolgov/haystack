@@ -11,7 +11,7 @@ struct CloseAccount {
         }
         guard !account.isClosed else { return }
         try await AdjustBalance(unitOfWork: unitOfWork).execute(id: id, to: 0)
-        let transactions = await store.transactions.find(accountID: id)
+        let transactions = try await store.transactions.query(.account(id))
         try account.close(transactions)
         try await store.accounts.save(account)
     }

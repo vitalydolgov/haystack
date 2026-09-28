@@ -21,7 +21,7 @@ struct ConvertTransactionToTransfer {
         guard accountID != counterpartAccountID else {
             throw TransferError.sameAccount
         }
-        guard let existing = await store.transactions.find(id: id),
+        guard let existing = try await store.transactions.query(id: id),
               existing.type == .standard else {
             throw TransactionError.notFound
         }

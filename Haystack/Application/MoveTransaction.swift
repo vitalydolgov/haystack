@@ -10,7 +10,7 @@ struct MoveTransaction {
 
     @Transactional
     func execute(id: UUID, movingTo accountID: UUID) async throws {
-        guard let transaction = await store.transactions.find(id: id) else {
+        guard let transaction = try await store.transactions.query(id: id) else {
             throw TransactionError.notFound
         }
         guard transaction.type != .transfer else {

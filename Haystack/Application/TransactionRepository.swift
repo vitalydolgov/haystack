@@ -1,9 +1,17 @@
 import Foundation
 
-protocol TransactionRepository: Sendable {
+enum TransactionQuery: Sendable {
+    case account(UUID)
+    case all
+}
+
+protocol TransactionQuerying: Sendable {
+    func query(id: UUID) async throws -> Transaction?
+    func query(_ query: TransactionQuery) async throws -> [Transaction]
+    func queryTransfer(id: UUID) async throws -> (Transaction, Transaction)?
+}
+
+protocol TransactionRepository: TransactionQuerying, Sendable {
     func save(_ transaction: Transaction) async throws
-    func find(id: UUID) async -> Transaction?
-    func find(accountID: UUID) async -> [Transaction]
-    func findTransfer(id: UUID) async -> (Transaction, Transaction)?
     func delete(_ transaction: DeletedTransaction) async throws
 }
