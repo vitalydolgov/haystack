@@ -1,26 +1,65 @@
 import SwiftUI
 
+private struct AccountRow: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let name: String
+    let balance: Decimal
+    let isClosed: Bool
+
+    init(_ account: Account) {
+        id = account.id
+        name = account.name
+        balance = account.balance
+        isClosed = account.isClosed
+    }
+
+    static func == (lhs: AccountRow, rhs: AccountRow) -> Bool {
+        lhs.id == rhs.id
+            && lhs.name == rhs.name
+            && lhs.balance == rhs.balance
+            && lhs.isClosed == rhs.isClosed
+    }
+}
+
 struct AccountsView: View {
-    @State private var accounts: [Account] = []
-    @State private var transactions: [Transaction] = []
+    @State private var accounts: [AccountRow] = []
     @State private var pendingCloseID: UUID?
 
     @Environment(Navigator.self) private var navigator
     @Environment(\.unitOfWork) private var unitOfWork
     @Environment(\.accountRepository) private var accountRepository
-    @Environment(\.transactionRepository) private var transactionRepository
 
-    private var openAccounts: [Account] {
-        accounts.filter { !$0.isClosed }
-    }
+    // MARK: Views
 
-    private var closedAccounts: [Account] {
-        accounts.filter(\.isClosed)
-    }
-
-    // TODO: fetch
-    private var currencyCode: String {
-        Locale.current.currency?.identifier ?? "USD"
+    private func accountRow(_ account: AccountRow) -> some View {
+        NavigationLink(value: Route.transactions(accountID: account.id)) {
+            HStack {
+                Text(account.name)
+                Spacer()
+                Text(account.balance, format: .currency(code: currencyCode))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .foregroundStyle(.primary)
+        .contextMenu {
+            Button("Edit Account") {
+                navigator.present(.editAccount(accountID: account.id))
+            }
+            if account.isClosed {
+                Button("Reopen Account") {
+                    reopen(id: account.id)
+                }
+            } else {
+                Button("Close Account", role: .destructive) {
+                    if account.balance == 0 {
+                        close(id: account.id)
+                    } else {
+                        pendingCloseID = account.id
+                    }
+                }
+            }
+        }
     }
 
     var body: some View {
@@ -61,7 +100,6 @@ struct AccountsView: View {
         }
         .task(id: navigator.sheet) {
             accounts = await accounts()
-            transactions = await transactions()
         }
         .task {
             #if DEBUG
@@ -70,23 +108,34 @@ struct AccountsView: View {
         }
     }
 
-    private func accounts() async -> [Account] {
+    // MARK: Tasks
+
+    private func accounts() async -> [AccountRow] {
         do {
-            return try await accountRepository.query(.includingClosed)
+            return try await accountRepository.query(.includingClosed).map(AccountRow.init)
         } catch {
             print("error: \(error)")
             return []
         }
     }
 
-    private func transactions() async -> [Transaction] {
-        do {
-            return try await transactionRepository.query(.all)
-        } catch {
-            print("error: \(error)")
-            return []
+    // MARK: Commands
+
+    private func close(id: UUID) {
+        Task {
+            try await CloseAccount(unitOfWork: unitOfWork).execute(id: id)
+            accounts = await accounts()
         }
     }
+
+    private func reopen(id: UUID) {
+        Task {
+            try await ReopenAccount(unitOfWork: unitOfWork).execute(id: id)
+            accounts = await accounts()
+        }
+    }
+
+    // MARK: Helpers
 
     private var isConfirmingClose: Binding<Bool> {
         Binding(
@@ -95,61 +144,16 @@ struct AccountsView: View {
         )
     }
 
-    private func accountRow(_ account: Account) -> some View {
-        NavigationLink(value: Route.transactions(accountID: account.id)) {
-            HStack {
-                Text(account.name)
-                Spacer()
-                Text(balance(for: account), format: .currency(code: currencyCode))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .foregroundStyle(.primary)
-        .contextMenu {
-            Button("Edit Account") {
-                navigator.present(.editAccount(accountID: account.id))
-            }
-            if account.isClosed {
-                Button("Reopen Account") {
-                    reopen(id: account.id)
-                }
-            } else {
-                Button("Close Account", role: .destructive) {
-                    requestClose(account)
-                }
-            }
-        }
+    private var openAccounts: [AccountRow] {
+        accounts.filter { !$0.isClosed }
     }
 
-    private func requestClose(_ account: Account) {
-        if balance(for: account) == 0 {
-            close(id: account.id)
-        } else {
-            pendingCloseID = account.id
-        }
+    private var closedAccounts: [AccountRow] {
+        accounts.filter(\.isClosed)
     }
 
-    private func balance(for account: Account) -> Decimal {
-        transactions.reduce(into: 0 as Decimal) { total, transaction in
-            guard transaction.accountID == account.id else { return }
-            total += transaction.amount
-        }
-    }
-
-    private func close(id: UUID) {
-        Task {
-            try await CloseAccount(unitOfWork: unitOfWork).execute(id: id)
-            accounts = await accounts()
-            transactions = await transactions()
-        }
-    }
-
-    private func reopen(id: UUID) {
-        Task {
-            try await ReopenAccount(unitOfWork: unitOfWork).execute(id: id)
-            accounts = await accounts()
-            transactions = await transactions()
-        }
+    // TODO: fetch
+    private var currencyCode: String {
+        Locale.current.currency?.identifier ?? "USD"
     }
 }
