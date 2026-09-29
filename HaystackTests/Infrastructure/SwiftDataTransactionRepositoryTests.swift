@@ -179,6 +179,101 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(try await transactions.queryTransfer(id: UUID()) == nil)
     }
 
+    // MARK: Query Counterpart
+
+    @Test func findsCounterpartByTransactionID() async throws {
+        let (container, writer) = try await makeStore()
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            accountID: UUID(),
+            amount: -50,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            accountID: UUID(),
+            amount: 50,
+            type: .transfer,
+            transferID: transferID
+        )
+        try await writer.save(fromLeg)
+        try await writer.save(toLeg)
+
+        let counterpart = try #require(
+            try await reader(container).queryCounterpart(transactionID: fromLeg.id)
+        )
+        #expect(counterpart.id == toLeg.id)
+        let other = try #require(
+            try await reader(container).queryCounterpart(transactionID: toLeg.id)
+        )
+        #expect(other.id == fromLeg.id)
+    }
+
+    @Test func returnsNilWhenTransactionHasNoTransfer() async throws {
+        let (_, transactions) = try await makeStore()
+        let transaction = try Transaction.make()
+        try await transactions.save(transaction)
+
+        #expect(try await transactions.queryCounterpart(transactionID: transaction.id) == nil)
+    }
+
+    @Test func returnsNilWhenCounterpartIsDeleted() async throws {
+        let (container, writer) = try await makeStore()
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            amount: -50,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            amount: 50,
+            type: .transfer,
+            transferID: transferID
+        )
+        try await writer.save(fromLeg)
+        try await writer.save(toLeg)
+        try await writer.delete(toLeg.delete(at: Date()))
+
+        #expect(try await reader(container).queryCounterpart(transactionID: fromLeg.id) == nil)
+    }
+
+    @Test func returnsNilWhenTransactionIsDeleted() async throws {
+        let (_, transactions) = try await makeStore()
+        let transferID = UUID()
+        let fromLeg = try Transaction.make(
+            amount: -50,
+            type: .transfer,
+            transferID: transferID
+        )
+        let toLeg = try Transaction.make(
+            amount: 50,
+            type: .transfer,
+            transferID: transferID
+        )
+        try await transactions.save(fromLeg)
+        try await transactions.save(toLeg)
+        try await transactions.delete(fromLeg.delete(at: Date()))
+
+        #expect(try await transactions.queryCounterpart(transactionID: fromLeg.id) == nil)
+    }
+
+    @Test func returnsNilWhenTransferLegIsAlone() async throws {
+        let (_, transactions) = try await makeStore()
+        let leg = try Transaction.make(
+            amount: -50,
+            type: .transfer,
+            transferID: UUID()
+        )
+        try await transactions.save(leg)
+
+        #expect(try await transactions.queryCounterpart(transactionID: leg.id) == nil)
+    }
+
+    @Test func returnsNilWhenTransactionIsMissing() async throws {
+        let (_, transactions) = try await makeStore()
+        #expect(try await transactions.queryCounterpart(transactionID: UUID()) == nil)
+    }
+
     // MARK: Delete
 
     @Test func persistsADeletedTransaction() async throws {
