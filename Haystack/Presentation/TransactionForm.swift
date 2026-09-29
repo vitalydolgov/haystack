@@ -19,7 +19,7 @@ struct TransactionForm: View {
     @Binding var date: Date
     @Binding var notes: String
     @Binding var selectedAccountID: UUID
-    @Binding var transferAccountID: UUID
+    @Binding var counterpartAccountID: UUID?
 
     @State private var picker: PickerField?
     @State private var accounts: [Account] = []
@@ -42,7 +42,7 @@ struct TransactionForm: View {
                 }
                 Text(title)
                 Spacer()
-                Text(name(of: account(with: selectedAccountID)))
+                Text(name(of: selectedAccount()))
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
@@ -59,8 +59,8 @@ struct TransactionForm: View {
             HStack {
                 Text("Transfer To")
                 Spacer()
-                Text(name(of: account(with: transferAccountID)))
-                    .foregroundStyle(.secondary)
+                Text(name(of: counterpartAccount()))
+                .foregroundStyle(.secondary)
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
@@ -74,8 +74,8 @@ struct TransactionForm: View {
             KindPicker(kind: $kind)
             AmountBlock(
                 amountInCents: amountInCents,
-                selectedAccount: account(with: selectedAccountID),
-                transferAccount: account(with: transferAccountID),
+                selectedAccount: selectedAccount(),
+                counterpartAccount: counterpartAccount(),
                 kind: kind
             )
             Form {
@@ -108,30 +108,30 @@ struct TransactionForm: View {
             case .account:
                 AccountPicker(selectedID: $selectedAccountID)
             case .transfer:
-                AccountPicker(selectedID: $transferAccountID)
+                AccountPicker(selectedID: $counterpartAccountID)
             }
         }
         .task {
             accounts = await accounts()
         }
-        .onChange(of: kind) { oldValue, newValue in
+        .onChange(of: kind) { _, newValue in
             switch newValue {
             case .expense, .income:
-                transferAccountID = selectedAccountID
+                counterpartAccountID = nil
             case .transfer:
-                guard selectedAccountID == transferAccountID else { return }
-                guard let other = accounts.first(where: { $0.id != selectedAccountID }) else {
-                    kind = oldValue
-                    return
+                if counterpartAccountID == selectedAccountID {
+                    counterpartAccountID = nil
                 }
-                transferAccountID = other.id
             }
         }
         .onChange(of: selectedAccountID) { oldValue, newValue in
-            if transferAccountID == oldValue {
-                transferAccountID = newValue
-            } else if newValue == transferAccountID {
-                transferAccountID = oldValue
+            if counterpartAccountID == newValue {
+                counterpartAccountID = oldValue
+            }
+        }
+        .onChange(of: counterpartAccountID) { oldValue, newValue in
+            if let oldValue, selectedAccountID == newValue {
+                selectedAccountID = oldValue
             }
         }
         .onChange(of: amountText, initial: true) { _, newValue in
@@ -161,6 +161,17 @@ struct TransactionForm: View {
 
     private func account(with id: UUID) -> Account? {
         accounts.first { $0.id == id }
+    }
+
+    private func selectedAccount() -> Account? {
+        account(with: selectedAccountID)
+    }
+
+    private func counterpartAccount() -> Account? {
+        guard let counterpartAccountID else {
+            return nil
+        }
+        return account(with: counterpartAccountID)
     }
 
     private func pushDigit(_ digit: Int) {
@@ -199,7 +210,7 @@ private struct KindPicker: View {
 private struct AmountBlock: View {
     var amountInCents: Int
     var selectedAccount: Account?
-    var transferAccount: Account?
+    var counterpartAccount: Account?
     var kind: TransactionKind
 
     var body: some View {
@@ -248,7 +259,7 @@ private struct AmountBlock: View {
         case .income:
             "Into \(name(of: selectedAccount))"
         case .transfer:
-            "\(name(of: selectedAccount)) → \(name(of: transferAccount))"
+            "\(name(of: selectedAccount)) → \(name(of: counterpartAccount))"
         }
     }
 }
