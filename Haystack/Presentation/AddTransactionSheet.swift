@@ -74,12 +74,25 @@ struct AddTransactionSheet: View {
     }
 
     private var canSave: Bool {
-        AddTransaction.canExecute(amount: signedAmount)
+        if isTransfer {
+            AddTransfer.canExecute(
+                fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
+                toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                amount: abs(signedAmount)
+            )
+        } else {
+            AddTransaction.canExecute(amount: signedAmount)
+        }
     }
 
     private func save() async {
         do {
             if isTransfer {
+                guard AddTransfer.canExecute(
+                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
+                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    amount: abs(signedAmount)
+                ) else { return }
                 _ = try await AddTransfer(unitOfWork: unitOfWork).execute(
                     fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
                     toAccountID: isOutflow ? transferAccountID : selectedAccountID,

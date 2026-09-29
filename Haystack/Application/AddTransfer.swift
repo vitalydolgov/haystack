@@ -4,6 +4,10 @@ import TransactionalMacro
 struct AddTransfer {
     let unitOfWork: UnitOfWork
 
+    static func canExecute(fromAccountID: UUID, toAccountID: UUID, amount: Decimal) -> Bool {
+        fromAccountID != toAccountID && amount > 0
+    }
+
     @Transactional
     func execute(
         fromAccountID: UUID,

@@ -142,11 +142,21 @@ struct EditTransactionSheet: View {
     private var canSave: Bool {
         switch mode {
         case .plain where isConversion:
-            ConvertTransactionToTransfer.canExecute(amount: signedAmount)
+            ConvertTransactionToTransfer.canExecute(
+                accountID: selectedAccountID,
+                counterpartAccountID: transferAccountID,
+                amount: signedAmount
+            )
         case .plain:
             EditTransaction.canExecute(amount: signedAmount)
         case .transfer where isConversion:
             ConvertTransferToTransaction.canExecute(amount: signedAmount)
+        case .transfer where isMove:
+            ReplaceTransfer.canExecute(
+                fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
+                toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                amount: abs(signedAmount)
+            )
         case .transfer:
             EditTransfer.canExecute(amount: signedAmount)
         }
@@ -156,7 +166,11 @@ struct EditTransactionSheet: View {
         do {
             switch mode {
             case .plain(let transactionID) where isConversion:
-                guard ConvertTransactionToTransfer.canExecute(amount: signedAmount) else { return }
+                guard ConvertTransactionToTransfer.canExecute(
+                    accountID: selectedAccountID,
+                    counterpartAccountID: transferAccountID,
+                    amount: signedAmount
+                ) else { return }
                 try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
                     id: transactionID,
                     accountID: selectedAccountID,
@@ -191,7 +205,11 @@ struct EditTransactionSheet: View {
                     notes: notes
                 )
             case .transfer(let transferID) where isMove:
-                guard EditTransfer.canExecute(amount: signedAmount) else {
+                guard ReplaceTransfer.canExecute(
+                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
+                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    amount: abs(signedAmount)
+                ) else {
                     saveID = nil
                     return
                 }
