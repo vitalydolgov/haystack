@@ -37,15 +37,9 @@ struct TransactionsView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    if let transferID = transaction.transferID {
-                        navigator.present(
-                            .editTransfer(accountID: accountID, transferID: transferID)
-                        )
-                    } else {
-                        navigator.present(
-                            .editTransaction(accountID: accountID, transactionID: transaction.id)
-                        )
-                    }
+                    navigator.present(
+                        .editTransaction(transactionID: transaction.id, transferID: transaction.transferID)
+                    )
                 }
                 .swipeActions(edge: .leading) {
                     // TODO: clear/unclear

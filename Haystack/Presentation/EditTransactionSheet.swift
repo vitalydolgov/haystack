@@ -5,22 +5,18 @@ struct EditTransactionSheet: View {
     @Environment(\.transactionRepository) private var transactionRepository
     @Environment(\.dismiss) private var dismiss
 
-    let accountID: UUID
-
-    enum Mode {
-        case plain(UUID)
-        case transfer(UUID)
-    }
-    let mode: Mode
+    let transactionID: UUID
+    let transferID: UUID?
 
     @State private var amountText = ""
-    @State private var kind: TransactionKind = .expense
+    @State private var transactionKind: TransactionKind = .expense
     @State private var date = Date()
     @State private var notes = ""
     @State private var selectedAccountID = UUID()
-    @State private var transferAccountID = UUID()
-    @State private var loadedSelectedAccountID = UUID()
-    @State private var loadedTransferAccountID = UUID()
+    @State private var counterpartAccountID: UUID?
+
+    @State private var initialSelectedAccountID = UUID()
+    @State private var initialCounterpartAccountID: UUID?
 
     @State private var saveID: UUID?
 
@@ -30,29 +26,9 @@ struct EditTransactionSheet: View {
         return Decimal(string: trimmed, locale: .current)
     }
 
-    private var isMove: Bool {
-        switch mode {
-        case .plain:
-            selectedAccountID != accountID
-        case .transfer:
-            selectedAccountID != loadedSelectedAccountID || transferAccountID != loadedTransferAccountID
-        }
-    }
-
-    private var isTransfer: Bool {
-        kind == .transfer
-    }
-
-    private var isConversion: Bool {
-        switch mode {
-        case .plain: isTransfer
-        case .transfer: !isTransfer
-        }
-    }
-
     private var signedAmount: Decimal {
         let amount = abs(parsedAmount ?? 0)
-        switch kind {
+        switch transactionKind {
         case .income:
             return amount
         case .expense, .transfer:
@@ -64,13 +40,13 @@ struct EditTransactionSheet: View {
         NavigationStack {
             TransactionForm(
                 amountText: $amountText,
-                kind: $kind,
+                kind: $transactionKind,
                 date: $date,
                 notes: $notes,
                 selectedAccountID: $selectedAccountID,
-                transferAccountID: $transferAccountID,
+                counterpartAccountID: $counterpartAccountID,
             )
-            .navigationTitle(title)
+            .navigationTitle("Edit Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -91,24 +67,38 @@ struct EditTransactionSheet: View {
             }
             .task {
                 #if DEBUG
-                switch mode {
-                case .plain(let transactionID):
-                    print("navigation \(Self.self) accountID=\(accountID) transactionID=\(transactionID)")
-                case .transfer(let transferID):
-                    print("navigation \(Self.self) accountID=\(accountID) transferID=\(transferID)")
-                }
+                print("navigation \(Self.self) transactionID=\(transactionID)")
                 #endif
-                switch mode {
-                case .plain(let transactionID):
-                    guard let transaction = await transaction(id: transactionID) else { return }
-                    show(transaction)
-                case .transfer(let transferID):
-                    guard let (outflow, inflow) = await transfer(id: transferID) else { return }
-                    let transaction = outflow.accountID == accountID ? outflow : inflow
-                    let counterpart = outflow.accountID == accountID ? inflow : outflow
-                    show(transaction, counterpartAccountID: counterpart.accountID)
-                }
+                await prefill()
             }
+        }
+    }
+
+    private func prefill() async {
+        guard let transaction = await transaction(id: transactionID) else { return }
+        transactionKind = TransactionKind(of: transaction)
+        if transferID != nil {
+            guard let counterpart = await counterpart(transactionID: transactionID) else { return }
+            amountText = AmountFormatter.text(from: transaction.amount)
+            date = Transaction.date(from: transaction.date)
+            notes = transaction.notes
+            if transaction.amount < 0 {
+                selectedAccountID = transaction.accountID
+                counterpartAccountID = counterpart.accountID
+            } else {
+                selectedAccountID = counterpart.accountID
+                counterpartAccountID = transaction.accountID
+            }
+            initialSelectedAccountID = selectedAccountID
+            initialCounterpartAccountID = counterpartAccountID
+        } else {
+            amountText = AmountFormatter.text(from: transaction.amount)
+            date = Transaction.date(from: transaction.date)
+            notes = transaction.notes
+            selectedAccountID = transaction.accountID
+            counterpartAccountID = nil
+            initialSelectedAccountID = selectedAccountID
+            initialCounterpartAccountID = nil
         }
     }
 
@@ -121,139 +111,148 @@ struct EditTransactionSheet: View {
         }
     }
 
-    private func transfer(id: UUID) async -> (Transaction, Transaction)? {
+    private func counterpart(transactionID: UUID) async -> Transaction? {
         do {
-            return try await transactionRepository.queryTransfer(id: id)
+            return try await transactionRepository.queryCounterpart(transactionID: transactionID)
         } catch {
             print("error: \(error)")
             return nil
         }
     }
 
-    private func show(_ transaction: Transaction, counterpartAccountID: UUID? = nil) {
-        amountText = AmountFormatter.text(from: transaction.amount)
-        date = Transaction.date(from: transaction.date)
-        notes = transaction.notes
-        if let counterpartAccountID {
-            kind = .transfer
-            if transaction.amount < 0 {
-                selectedAccountID = transaction.accountID
-                transferAccountID = counterpartAccountID
-            } else {
-                selectedAccountID = counterpartAccountID
-                transferAccountID = transaction.accountID
-            }
-        } else {
-            kind = transaction.amount < 0 ? .expense : .income
-            selectedAccountID = transaction.accountID
-            transferAccountID = transaction.accountID
-        }
-        loadedSelectedAccountID = selectedAccountID
-        loadedTransferAccountID = transferAccountID
+    private var isConversion: Bool {
+        transferID == nil && transactionKind.isTransfer || transferID != nil && transactionKind.isPlain
     }
 
-    private var title: String {
-        "Edit Transaction"
+    private var isMove: Bool {
+        if transferID == nil {
+            selectedAccountID != initialSelectedAccountID
+        } else {
+            selectedAccountID != initialSelectedAccountID || counterpartAccountID != initialCounterpartAccountID
+        }
     }
 
     private var canSave: Bool {
-        switch mode {
-        case .plain where isConversion:
-            ConvertTransactionToTransfer.canExecute(
+        if transactionKind.isPlain {
+            canSavePlain
+        } else {
+            canSaveTransfer
+        }
+    }
+
+    private var canSavePlain: Bool {
+        if isConversion {
+            ConvertTransferToTransaction.canExecute(amount: signedAmount)
+        } else if isMove {
+            MoveTransaction.canExecute(fromAccountID: initialSelectedAccountID, toAccountID: selectedAccountID)
+        } else {
+            EditTransaction.canExecute(amount: signedAmount)
+        }
+    }
+
+    private var canSaveTransfer: Bool {
+        if isConversion {
+            guard let counterpartAccountID else {
+                return false
+            }
+            return ConvertTransactionToTransfer.canExecute(
                 accountID: selectedAccountID,
-                counterpartAccountID: transferAccountID,
+                counterpartAccountID: counterpartAccountID,
                 amount: signedAmount
             )
-        case .plain:
-            EditTransaction.canExecute(amount: signedAmount)
-        case .transfer where isConversion:
-            ConvertTransferToTransaction.canExecute(amount: signedAmount)
-        case .transfer where isMove:
-            ReplaceTransfer.canExecute(
+        } else if isMove {
+            guard let counterpartAccountID else {
+                return false
+            }
+            return ReplaceTransfer.canExecute(
                 fromAccountID: selectedAccountID,
-                toAccountID: transferAccountID,
+                toAccountID: counterpartAccountID,
                 amount: abs(signedAmount)
             )
-        case .transfer:
-            EditTransfer.canExecute(amount: signedAmount)
+        } else {
+            return EditTransfer.canExecute(amount: signedAmount)
         }
     }
 
     private func save() async {
         do {
-            switch mode {
-            case .plain(let transactionID) where isConversion:
-                guard ConvertTransactionToTransfer.canExecute(
-                    accountID: selectedAccountID,
-                    counterpartAccountID: transferAccountID,
-                    amount: signedAmount
-                ) else { return }
-                try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
-                    id: transactionID,
-                    accountID: selectedAccountID,
-                    counterpartAccountID: transferAccountID,
-                    date: date,
-                    amount: signedAmount,
-                    notes: notes
-                )
-            case .plain(let transactionID) where isMove:
-                guard MoveTransaction.canExecute(fromAccountID: accountID, toAccountID: selectedAccountID) else { return }
-                try await MoveTransaction(unitOfWork: unitOfWork).execute(
-                    id: transactionID,
-                    movingTo: selectedAccountID
-                )
-            case .plain(let transactionID):
-                guard EditTransaction.canExecute(amount: signedAmount) else { return }
-                try await EditTransaction(unitOfWork: unitOfWork).execute(
-                    id: transactionID,
-                    accountID: selectedAccountID,
-                    date: date,
-                    amount: signedAmount,
-                    notes: notes
-                )
-            case .transfer(let transferID) where isConversion:
-                guard ConvertTransferToTransaction.canExecute(amount: signedAmount) else { return }
-                try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
-                    transferID: transferID,
-                    keeping: accountID,
-                    movingTo: selectedAccountID,
-                    date: date,
-                    amount: signedAmount,
-                    notes: notes
-                )
-            case .transfer(let transferID) where isMove:
-                guard ReplaceTransfer.canExecute(
-                    fromAccountID: selectedAccountID,
-                    toAccountID: transferAccountID,
-                    amount: abs(signedAmount)
-                ) else {
-                    saveID = nil
-                    return
-                }
-                try await ReplaceTransfer(unitOfWork: unitOfWork).execute(
-                    id: transferID,
-                    fromAccountID: selectedAccountID,
-                    toAccountID: transferAccountID,
-                    date: date,
-                    amount: abs(signedAmount),
-                    notes: notes
-                )
-            case .transfer(let transferID):
-                guard EditTransfer.canExecute(amount: signedAmount) else {
-                    saveID = nil
-                    return
-                }
-                try await EditTransfer(unitOfWork: unitOfWork).execute(
-                    id: transferID,
-                    accountID: selectedAccountID,
-                    date: date,
-                    amount: signedAmount,
-                    notes: notes
-                )
+            if transactionKind.isPlain {
+                try await savePlain()
+            } else {
+                try await saveTransfer()
             }
             dismiss()
         } catch {
             saveID = nil
+        }
+    }
+
+    private func savePlain() async throws {
+        if isConversion {
+            guard let transferID,
+                  let transaction = await transaction(id: transactionID) else {
+                throw PresentationError.cannotExecute
+            }
+            try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
+                transferID: transferID,
+                keeping: transaction.accountID,
+                movingTo: selectedAccountID,
+                date: date,
+                amount: signedAmount,
+                notes: notes
+            )
+        } else if isMove {
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
+                id: transactionID,
+                movingTo: selectedAccountID
+            )
+        } else {
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
+                id: transactionID,
+                accountID: selectedAccountID,
+                date: date,
+                amount: signedAmount,
+                notes: notes
+            )
+        }
+    }
+
+    private func saveTransfer() async throws {
+        if isConversion {
+            guard let counterpartAccountID else {
+                throw PresentationError.cannotExecute
+            }
+            try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
+                id: transactionID,
+                accountID: selectedAccountID,
+                counterpartAccountID: counterpartAccountID,
+                date: date,
+                amount: signedAmount,
+                notes: notes
+            )
+        } else if isMove {
+            guard let transferID, let counterpartAccountID else {
+                throw PresentationError.cannotExecute
+            }
+            try await ReplaceTransfer(unitOfWork: unitOfWork).execute(
+                id: transferID,
+                fromAccountID: selectedAccountID,
+                toAccountID: counterpartAccountID,
+                date: date,
+                amount: abs(signedAmount),
+                notes: notes
+            )
+        } else {
+            guard let transferID else {
+                throw PresentationError.cannotExecute
+            }
+            try await EditTransfer(unitOfWork: unitOfWork).execute(
+                id: transferID,
+                accountID: selectedAccountID,
+                date: date,
+                amount: signedAmount,
+                notes: notes
+            )
         }
     }
 }

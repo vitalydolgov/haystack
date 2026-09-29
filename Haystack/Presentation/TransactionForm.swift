@@ -11,6 +11,24 @@ enum TransactionKind: Hashable {
     case expense
     case income
     case transfer
+
+    var isTransfer: Bool {
+        self == .transfer
+    }
+
+    var isPlain: Bool {
+        !isTransfer
+    }
+
+    init(of transaction: Transaction) {
+        if transaction.transferID != nil {
+            self = .transfer
+        } else if transaction.amount < 0 {
+            self = .expense
+        } else {
+            self = .income
+        }
+    }
 }
 
 struct TransactionForm: View {
@@ -82,7 +100,7 @@ struct TransactionForm: View {
                 // TODO: payee
                 Section {
                     accountRow
-                    if kind == .transfer {
+                    if kind.isTransfer {
                         transferRow
                     }
                     DatePicker(
