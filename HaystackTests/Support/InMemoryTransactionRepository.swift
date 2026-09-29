@@ -34,6 +34,15 @@ actor InMemoryTransactionRepository: TransactionRepository {
         return (fromLeg, toLeg)
     }
 
+    func queryCounterpart(transactionID: UUID) -> Transaction? {
+        guard let transaction = query(id: transactionID),
+              let transferID = transaction.transferID,
+              let (fromLeg, toLeg) = queryTransfer(id: transferID) else { return nil }
+        if fromLeg.id == transaction.id { return toLeg }
+        if toLeg.id == transaction.id { return fromLeg }
+        return nil
+    }
+
     func delete(_ transaction: DeletedTransaction) {
         guard tombstones[transaction.id] == nil else { return }
         transactions[transaction.id] = nil

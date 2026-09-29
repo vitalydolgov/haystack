@@ -4,8 +4,8 @@ import TransactionalMacro
 struct ConvertTransactionToTransfer {
     let unitOfWork: UnitOfWork
 
-    static func canExecute(amount: Decimal) -> Bool {
-        amount != 0
+    static func canExecute(accountID: UUID, counterpartAccountID: UUID, amount: Decimal) -> Bool {
+        accountID != counterpartAccountID && amount != 0
     }
 
     @Transactional

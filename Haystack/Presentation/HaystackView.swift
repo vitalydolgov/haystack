@@ -25,10 +25,8 @@ private struct HaystackNavigation: View {
             EditAccountSheet(accountID: accountID)
         case .addTransaction(let accountID):
             AddTransactionSheet(accountID: accountID)
-        case .editTransaction(let accountID, let transactionID):
-            EditTransactionSheet(accountID: accountID, mode: .plain(transactionID))
-        case .editTransfer(let accountID, let transferID):
-            EditTransactionSheet(accountID: accountID, mode: .transfer(transferID))
+        case .editTransaction(let transactionID, let transferID):
+            EditTransactionSheet(transactionID: transactionID, transferID: transferID)
         }
     }
 
