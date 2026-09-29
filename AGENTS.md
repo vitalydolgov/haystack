@@ -39,6 +39,13 @@ Do not call `unitOfWork.perform` by hand in use cases. Annotate `execute` with `
 
 Views do not use SwiftData directly: reads come from query interfaces in the environment. Load them inside `.task` and store the result in `@State`. Writes go through use cases. Do not use `@Query` or `ModelContext`.
 
+Group view members with `// MARK:` in this order:
+
+- `Views` — private functions and properties whose result is a view, written before `body`
+- `Tasks` — async helpers called from `.task`
+- `Commands` — work that leaves the view through a use case
+- `Helpers` — other values the view reads
+
 ## Testing
 
 Never write tests unless the user explicitly asks for them. That includes temporary tests, verification tests, and tests you plan to delete. Implementing a feature is not a request for tests.
@@ -62,6 +69,7 @@ Exceptions:
 - **Public interfaces**: document public types, methods, properties, and other API surface that callers outside the defining module need to understand.
 - **`TODO:` placeholders** for work deferred to a later phase. Prefer a `TODO` over generating the full implementation when the current phase does not need it.
 - **Tests**: `// MARK:` as described in Testing.
+- **Views**: `// MARK:` as described in Presentation.
 
 ## Repository
 
