@@ -4,9 +4,12 @@ import Testing
 
 struct DeleteTransactionTests {
     @Test func marksATransactionDeleted() async throws {
+        let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
-        let transaction = try Transaction.make()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        await accounts.save(account)
+        let transaction = try Transaction.make(accountID: account.id)
         await transactions.save(transaction)
         let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -28,9 +31,12 @@ struct DeleteTransactionTests {
     }
 
     @Test func failsWhenAlreadyDeleted() async throws {
+        let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
-        let transaction = try Transaction.make()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        await accounts.save(account)
+        let transaction = try Transaction.make(accountID: account.id)
         await transactions.save(transaction)
         let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
         try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: transaction.id, at: deletedAt)
@@ -51,7 +57,7 @@ struct DeleteTransactionTests {
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
-        await #expect(throws: TransactionError.invalidType) {
+        await #expect(throws: TransactionError.notFound) {
             try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: fromLeg.id)
         }
         #expect(await transactions.query(id: fromLeg.id) != nil)

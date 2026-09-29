@@ -10,9 +10,10 @@ struct CloseAccount {
             throw AccountError.notFound
         }
         guard !account.isClosed else { return }
-        try await AdjustBalance(unitOfWork: unitOfWork).execute(id: id, to: 0)
-        let transactions = try await store.transactions.query(.account(id))
-        try account.close(transactions)
+        if account.balance != 0 {
+            account = try await AdjustBalance(unitOfWork: unitOfWork).execute(id: id, to: 0)
+        }
+        try account.close()
         try await store.accounts.save(account)
     }
 }

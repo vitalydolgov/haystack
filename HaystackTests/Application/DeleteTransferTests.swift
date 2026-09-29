@@ -4,17 +4,22 @@ import Testing
 
 struct DeleteTransferTests {
     @Test func deletesBothLegs() async throws {
+        let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
-        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let fromAccount = try Account.make()
+        let toAccount = try Account.make()
+        await accounts.save(fromAccount)
+        await accounts.save(toAccount)
         let transferID = UUID()
         let fromLeg = try Transaction.make(
-            accountID: UUID(),
+            accountID: fromAccount.id,
             amount: -10,
             type: .transfer,
             transferID: transferID
         )
         let toLeg = try Transaction.make(
-            accountID: UUID(),
+            accountID: toAccount.id,
             amount: 10,
             type: .transfer,
             transferID: transferID

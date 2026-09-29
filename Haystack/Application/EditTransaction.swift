@@ -17,28 +17,25 @@ struct EditTransaction {
         notes: String = ""
     ) async throws {
         guard amount != 0 else { throw TransactionError.invalidAmount }
-        guard let existing = try await store.transactions.query(id: id) else {
+        guard let currentTx = try await store.transactions.query(id: id),
+              currentTx.type != .transfer,
+              currentTx.accountID == accountID else {
             throw TransactionError.notFound
         }
-        guard existing.type != .transfer else {
-            throw TransactionError.invalidType
-        }
-        guard existing.accountID == accountID else {
-            throw TransactionError.notFound
-        }
-        guard let account = try await store.accounts.query(id: accountID) else {
+        guard var account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
-        guard !account.isClosed else {
-            throw AccountError.closed
-        }
-        var updated = existing
-        try updated.update(
+        guard !account.isClosed else { throw AccountError.closed }
+        var updatedTx = currentTx
+        try updatedTx.update(
             date: Self.dateComponents(from: date),
             amount: amount,
             notes: notes
         )
-        try await store.transactions.save(updated)
+        account -= currentTx
+        account += updatedTx
+        try await store.accounts.save(account)
+        try await store.transactions.save(updatedTx)
     }
 
     private static func dateComponents(from date: Date) -> (year: Int, month: Int, day: Int) {

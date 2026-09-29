@@ -14,11 +14,12 @@ enum AccountError: Error, Equatable, Sendable {
     case notFound
 }
 
-struct Account: Identifiable, Equatable, Sendable {
+struct Account: Identifiable, Sendable {
     let id: UUID
     private(set) var name: String
     var type: AccountType
     var notes: String
+    private(set) var balance: Decimal
     private(set) var isClosed: Bool
 
     init(
@@ -26,12 +27,14 @@ struct Account: Identifiable, Equatable, Sendable {
         name: String,
         type: AccountType,
         notes: String = "",
+        balance: Decimal = 0,
         isClosed: Bool = false
     ) throws {
         self.id = id
         self.name = try Self.normalizedName(name)
         self.type = type
         self.notes = notes
+        self.balance = balance
         self.isClosed = isClosed
     }
 
@@ -39,21 +42,14 @@ struct Account: Identifiable, Equatable, Sendable {
         self.name = try Self.normalizedName(name)
     }
 
-    mutating func close(_ transactions: [Transaction] = []) throws {
+    mutating func close() throws {
         guard !isClosed else { return }
-        guard balance(transactions) == 0 else { throw AccountError.nonZeroBalance }
+        guard balance == 0 else { throw AccountError.nonZeroBalance }
         isClosed = true
     }
 
     mutating func reopen() {
         isClosed = false
-    }
-
-    func balance(_ transactions: [Transaction]) -> Decimal {
-        transactions.reduce(into: 0) { total, transaction in
-            guard transaction.accountID == id else { return }
-            total += transaction.amount
-        }
     }
 
     func delete(at date: Date = .now) throws -> DeletedAccount {
@@ -67,6 +63,16 @@ struct Account: Identifiable, Equatable, Sendable {
         return name
     }
 
+    static func += (account: inout Account, transaction: Transaction) {
+        account.balance += transaction.amount
+    }
+
+    static func -= (account: inout Account, transaction: Transaction) {
+        account.balance -= transaction.amount
+    }
+}
+
+extension Account: Equatable {
     static func == (lhs: Account, rhs: Account) -> Bool {
         lhs.id == rhs.id
     }

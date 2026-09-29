@@ -18,6 +18,8 @@ struct ConvertTransferToTransaction {
         notes: String = ""
     ) async throws {
         guard amount != 0 else { throw TransactionError.invalidAmount }
+
+        // figure out what to keep
         guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: transferID) else {
             throw TransferError.notFound
         }
@@ -30,21 +32,37 @@ struct ConvertTransferToTransaction {
         default:
             throw TransactionError.notFound
         }
-        let destinationID = destinationAccountID ?? keptLeg.accountID
-        guard let account = try await store.accounts.query(id: destinationID) else {
+
+        // remove kept leg
+        guard var keptAccount = try await store.accounts.query(id: keptLeg.accountID) else {
             throw AccountError.notFound
         }
-        guard !account.isClosed else {
-            throw AccountError.closed
+        keptAccount -= keptLeg
+        try await store.accounts.save(keptAccount)
+
+        // remove dropped leg
+        guard var droppedAccount = try await store.accounts.query(id: droppedLeg.accountID) else {
+            throw AccountError.notFound
         }
-        let converted = try Transaction(
+        droppedAccount -= droppedLeg
+        try await store.accounts.save(droppedAccount)
+        try await store.transactions.delete(droppedLeg.delete())
+
+        // add transaction
+        let destinationID = destinationAccountID ?? keptLeg.accountID
+        let convertedTx = try Transaction(
             id: keptLeg.id,
             accountID: destinationID,
             date: date.asYearMonthDay(),
             amount: amount,
             notes: notes
         )
-        try await store.transactions.save(converted)
-        try await store.transactions.delete(droppedLeg.delete())
+        guard var account = try await store.accounts.query(id: destinationID) else {
+            throw AccountError.notFound
+        }
+        guard !account.isClosed else { throw AccountError.closed }
+        account += convertedTx
+        try await store.accounts.save(account)
+        try await store.transactions.save(convertedTx)
     }
 }

@@ -57,33 +57,6 @@ struct AccountTests {
         #expect(!account.isClosed)
     }
 
-    // MARK: Balance
-
-    @Test func sumsThisAccountsTransactions() throws {
-        let account = try Account.make()
-        let transactions = [
-            try Transaction.make(accountID: account.id, amount: 10),
-            try Transaction.make(accountID: account.id, amount: -3),
-        ]
-
-        #expect(account.balance(transactions) == 7)
-    }
-
-    @Test func isZeroWhenThereAreNoTransactions() throws {
-        let account = try Account.make()
-        #expect(account.balance([]) == 0)
-    }
-
-    @Test func ignoresTransactionsForOtherAccounts() throws {
-        let account = try Account.make()
-        let transactions = [
-            try Transaction.make(accountID: account.id, amount: 10),
-            try Transaction.make(accountID: UUID(), amount: 99),
-        ]
-
-        #expect(account.balance(transactions) == 10)
-    }
-
     // MARK: Close
 
     @Test func closesWhenBalanceIsZero() throws {
@@ -99,13 +72,11 @@ struct AccountTests {
     }
 
     @Test func failsWhenBalanceIsNonZero() throws {
-        var account = try Account.make()
-        let transactions = [try Transaction.make(accountID: account.id, amount: 10)]
+        var account = try Account.make(balance: 10)
         #expect(throws: AccountError.nonZeroBalance) {
-            try account.close(transactions)
+            try account.close()
         }
         #expect(!account.isClosed)
-        #expect(account.balance(transactions) == 10)
     }
 
     // MARK: Reopen

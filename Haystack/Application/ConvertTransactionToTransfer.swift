@@ -21,21 +21,22 @@ struct ConvertTransactionToTransfer {
         guard accountID != counterpartAccountID else {
             throw TransferError.sameAccount
         }
-        guard let existing = try await store.transactions.query(id: id),
-              existing.type == .standard else {
+
+        // remove old transaction
+        guard let transaction = try await store.transactions.query(id: id),
+              transaction.type == .standard else {
             throw TransactionError.notFound
         }
-        guard let account = try await store.accounts.query(id: accountID) else {
+        guard var transactionAccount = try await store.accounts.query(id: transaction.accountID) else {
             throw AccountError.notFound
         }
-        guard let counterpartAccount = try await store.accounts.query(id: counterpartAccountID) else {
-            throw AccountError.notFound
-        }
-        guard !account.isClosed else { throw AccountError.closed }
-        guard !counterpartAccount.isClosed else { throw AccountError.closed }
+        transactionAccount -= transaction
+        try await store.accounts.save(transactionAccount)
+
+        // make transfer legs
         let transferID = UUID()
-        let converted = try Transaction(
-            id: existing.id,
+        let convertedTx = try Transaction(
+            id: id,
             accountID: accountID,
             date: date.asYearMonthDay(),
             amount: amount,
@@ -43,7 +44,7 @@ struct ConvertTransactionToTransfer {
             type: .transfer,
             transferID: transferID
         )
-        let counterpart = try Transaction(
+        let counterpartTx = try Transaction(
             accountID: counterpartAccountID,
             date: date.asYearMonthDay(),
             amount: -amount,
@@ -51,7 +52,23 @@ struct ConvertTransactionToTransfer {
             type: .transfer,
             transferID: transferID
         )
-        try await store.transactions.save(converted)
-        try await store.transactions.save(counterpart)
+
+        // update account balance
+        guard var account = try await store.accounts.query(id: accountID) else {
+            throw AccountError.notFound
+        }
+        guard !account.isClosed else { throw AccountError.closed }
+        account += convertedTx
+        try await store.accounts.save(account)
+        try await store.transactions.save(convertedTx)
+
+        // update counterpart balance
+        guard var counterpartAccount = try await store.accounts.query(id: counterpartAccountID) else {
+            throw AccountError.notFound
+        }
+        guard !counterpartAccount.isClosed else { throw AccountError.closed }
+        counterpartAccount += counterpartTx
+        try await store.accounts.save(counterpartAccount)
+        try await store.transactions.save(counterpartTx)
     }
 }

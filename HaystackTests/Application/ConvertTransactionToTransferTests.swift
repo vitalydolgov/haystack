@@ -7,7 +7,7 @@ struct ConvertTransactionToTransferTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let account = try Account.make(name: "Wallet")
+        let account = try Account.make(name: "Wallet", balance: 10)
         let counterpartAccount = try Account.make(name: "Savings", type: .savings)
         await accounts.save(account)
         await accounts.save(counterpartAccount)
@@ -45,6 +45,8 @@ struct ConvertTransactionToTransferTests {
         #expect(counterpart.notes == "Coffee")
         #expect(counterpart.date == date.asYearMonthDay())
         #expect(await transactions.all().count == 2)
+        #expect(try await accounts.query(id: account.id)?.balance == -12.5)
+        #expect(try await accounts.query(id: counterpartAccount.id)?.balance == 12.5)
     }
 
     @Test func convertsInflowTransaction() async throws {

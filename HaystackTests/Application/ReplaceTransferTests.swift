@@ -7,8 +7,8 @@ struct ReplaceTransferTests {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
-        let fromAccount = try Account.make(name: "Wallet")
-        let toAccount = try Account.make(name: "Savings", type: .savings)
+        let fromAccount = try Account.make(name: "Wallet", balance: -10)
+        let toAccount = try Account.make(name: "Savings", type: .savings, balance: 10)
         let nextAccount = try Account.make(name: "Credit")
         await accounts.save(fromAccount)
         await accounts.save(toAccount)
@@ -57,6 +57,9 @@ struct ReplaceTransferTests {
         #expect(inflow.type == .transfer)
         #expect(outflow.transferID == inflow.transferID)
         #expect(outflow.transferID != transferID)
+        #expect(try await accounts.query(id: fromAccount.id)?.balance == 0)
+        #expect(try await accounts.query(id: toAccount.id)?.balance == 40)
+        #expect(try await accounts.query(id: nextAccount.id)?.balance == -40)
     }
 
     // MARK: Errors

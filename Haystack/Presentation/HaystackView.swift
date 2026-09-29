@@ -16,16 +16,6 @@ struct HaystackView: View {
 private struct HaystackNavigation: View {
     @Bindable var navigator: Navigator
 
-    var body: some View {
-        NavigationStack(path: $navigator.path) {
-            RouteView(route: navigator.root)
-                .navigationDestination(for: Route.self) { route in
-                    RouteView(route: route)
-                }
-        }
-        .sheet(item: $navigator.sheet, content: sheetView)
-    }
-
     @ViewBuilder
     private func sheetView(_ sheet: Sheet) -> some View {
         switch sheet {
@@ -40,6 +30,16 @@ private struct HaystackNavigation: View {
         case .editTransfer(let accountID, let transferID):
             EditTransactionSheet(accountID: accountID, mode: .transfer(transferID))
         }
+    }
+
+    var body: some View {
+        NavigationStack(path: $navigator.path) {
+            RouteView(route: navigator.root)
+                .navigationDestination(for: Route.self) { route in
+                    RouteView(route: route)
+                }
+        }
+        .sheet(item: $navigator.sheet, content: sheetView)
     }
 }
 

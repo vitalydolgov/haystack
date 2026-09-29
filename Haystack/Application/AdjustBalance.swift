@@ -5,20 +5,22 @@ struct AdjustBalance {
     let unitOfWork: UnitOfWork
 
     @Transactional
-    func execute(id: UUID, to balance: Decimal, on date: Date = .now) async throws {
-        guard let account = try await store.accounts.query(id: id) else {
+    func execute(id: UUID, to balance: Decimal, on date: Date = .now) async throws -> Account {
+        guard var account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
-        let existing = try await store.transactions.query(.account(id))
-        let delta = balance - account.balance(existing)
-        guard delta != 0 else { return }
+        let delta = balance - account.balance
+        guard delta != 0 else { throw TransactionError.invalidAmount }
         let transaction = try Transaction(
             accountID: id,
             date: date.asYearMonthDay(),
             amount: delta,
             type: .adjustment
         )
+        account += transaction
+        try await store.accounts.save(account)
         try await store.transactions.save(transaction)
+        return account
     }
 }

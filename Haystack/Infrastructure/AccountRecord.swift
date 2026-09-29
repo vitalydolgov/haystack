@@ -7,6 +7,7 @@ final class AccountRecord {
     var name: String
     var type: AccountType
     var notes: String
+    var balance: Decimal = 0
     var isClosed: Bool
     var deletedAt: Date?
 
@@ -15,6 +16,7 @@ final class AccountRecord {
         name: String,
         type: AccountType,
         notes: String,
+        balance: Decimal,
         isClosed: Bool,
         deletedAt: Date?
     ) {
@@ -22,6 +24,7 @@ final class AccountRecord {
         self.name = name
         self.type = type
         self.notes = notes
+        self.balance = balance
         self.isClosed = isClosed
         self.deletedAt = deletedAt
     }
@@ -32,6 +35,7 @@ final class AccountRecord {
             name: account.name,
             type: account.type,
             notes: account.notes,
+            balance: account.balance,
             isClosed: account.isClosed,
             deletedAt: nil
         )
@@ -43,6 +47,7 @@ final class AccountRecord {
             name: name,
             type: type,
             notes: notes,
+            balance: balance,
             isClosed: isClosed
         )
     }
@@ -51,6 +56,7 @@ final class AccountRecord {
         name = account.name
         type = account.type
         notes = account.notes
+        balance = account.balance
         isClosed = account.isClosed
     }
 }

@@ -16,8 +16,7 @@ struct AddAccount {
         notes: String = "",
         balance: Decimal = 0
     ) async throws -> Account {
-        let account = try Account(name: name, type: type, notes: notes)
-        try await store.accounts.save(account)
+        var account = try Account(name: name, type: type, notes: notes)
         if balance != 0 {
             let transaction = try Transaction(
                 accountID: account.id,
@@ -25,8 +24,10 @@ struct AddAccount {
                 amount: balance,
                 type: .adjustment
             )
+            account += transaction
             try await store.transactions.save(transaction)
         }
+        try await store.accounts.save(account)
         return account
     }
 }

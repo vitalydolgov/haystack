@@ -25,6 +25,7 @@ struct AddTransactionTests {
         #expect(stored.amount == -12.5)
         #expect(stored.notes == "Coffee")
         #expect(stored.type == .standard)
+        #expect(try await accounts.query(id: account.id)?.balance == -12.5)
     }
 
     // MARK: Validation

@@ -10,27 +10,28 @@ struct MoveTransaction {
 
     @Transactional
     func execute(id: UUID, movingTo accountID: UUID) async throws {
-        guard let transaction = try await store.transactions.query(id: id) else {
+        guard let originalTx = try await store.transactions.query(id: id),
+              originalTx.type != .transfer else {
             throw TransactionError.notFound
         }
-        guard transaction.type != .transfer else {
-            throw TransactionError.invalidType
-        }
-        guard let targetAccount = try await store.accounts.query(id: accountID) else {
+        guard originalTx.accountID != accountID else { return }
+        guard var source = try await store.accounts.query(id: originalTx.accountID),
+              var target = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
-        guard !targetAccount.isClosed else {
-            throw AccountError.closed
-        }
-        guard transaction.accountID != accountID else { return }
-        let moved = try Transaction(
-            id: transaction.id,
+        guard !source.isClosed, !target.isClosed else { throw AccountError.closed }
+        let movedTx = try Transaction(
+            id: originalTx.id,
             accountID: accountID,
-            date: transaction.date,
-            amount: transaction.amount,
-            notes: transaction.notes,
-            type: transaction.type
+            date: originalTx.date,
+            amount: originalTx.amount,
+            notes: originalTx.notes,
+            type: originalTx.type
         )
-        try await store.transactions.save(moved)
+        source -= originalTx
+        target += movedTx
+        try await store.accounts.save(source)
+        try await store.accounts.save(target)
+        try await store.transactions.save(movedTx)
     }
 }
