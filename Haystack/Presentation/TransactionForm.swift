@@ -108,7 +108,7 @@ struct TransactionForm: View {
             case .account:
                 AccountPicker(selectedID: $selectedAccountID)
             case .transfer:
-                AccountPicker(selectedID: $counterpartAccountID)
+                AccountPicker(optionalID: $counterpartAccountID)
             }
         }
         .task {

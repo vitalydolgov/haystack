@@ -38,7 +38,7 @@ struct AmountFormatter {
         return NSDecimalNumber(decimal: rounded).intValue
     }
 
-    private static var currencyCode: String {
+    static var currencyCode: String {
         Locale.current.currency?.identifier ?? "USD"
     }
 
