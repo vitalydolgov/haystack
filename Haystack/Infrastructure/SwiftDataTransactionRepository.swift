@@ -46,6 +46,15 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         return (outflow, inflow)
     }
 
+    func queryCounterpart(transactionID: UUID) throws -> Transaction? {
+        guard let transaction = try query(id: transactionID),
+              let transferID = transaction.transferID,
+              let (outflow, inflow) = try queryTransfer(id: transferID) else { return nil }
+        if outflow.id == transaction.id { return inflow }
+        if inflow.id == transaction.id { return outflow }
+        return nil
+    }
+
     func delete(_ transaction: DeletedTransaction) throws {
         guard let record = record(id: transaction.id), record.deletedAt == nil else { return }
         record.deletedAt = transaction.deletedAt

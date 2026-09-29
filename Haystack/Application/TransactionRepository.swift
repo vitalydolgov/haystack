@@ -9,6 +9,7 @@ protocol TransactionQuerying: Sendable {
     func query(id: UUID) async throws -> Transaction?
     func query(_ query: TransactionQuery) async throws -> [Transaction]
     func queryTransfer(id: UUID) async throws -> (Transaction, Transaction)?
+    func queryCounterpart(transactionID: UUID) async throws -> Transaction?
 }
 
 protocol TransactionRepository: TransactionQuerying, Sendable {
