@@ -14,12 +14,13 @@ struct EditTransactionSheet: View {
     let mode: Mode
 
     @State private var amountText = ""
-    @State private var isOutflow = true
+    @State private var kind: TransactionKind = .expense
     @State private var date = Date()
     @State private var notes = ""
     @State private var selectedAccountID = UUID()
     @State private var transferAccountID = UUID()
-    @State private var loadedCounterpartAccountID: UUID?
+    @State private var loadedSelectedAccountID = UUID()
+    @State private var loadedTransferAccountID = UUID()
 
     @State private var saveID: UUID?
 
@@ -32,15 +33,14 @@ struct EditTransactionSheet: View {
     private var isMove: Bool {
         switch mode {
         case .plain:
-            return selectedAccountID != accountID
+            selectedAccountID != accountID
         case .transfer:
-            guard let loadedCounterpartAccountID else { return false }
-            return selectedAccountID != accountID || loadedCounterpartAccountID != transferAccountID
+            selectedAccountID != loadedSelectedAccountID || transferAccountID != loadedTransferAccountID
         }
     }
 
     private var isTransfer: Bool {
-        selectedAccountID != transferAccountID
+        kind == .transfer
     }
 
     private var isConversion: Bool {
@@ -52,14 +52,19 @@ struct EditTransactionSheet: View {
 
     private var signedAmount: Decimal {
         let amount = abs(parsedAmount ?? 0)
-        return isOutflow ? -amount : amount
+        switch kind {
+        case .income:
+            return amount
+        case .expense, .transfer:
+            return -amount
+        }
     }
 
     var body: some View {
         NavigationStack {
             TransactionForm(
                 amountText: $amountText,
-                isOutflow: $isOutflow,
+                kind: $kind,
                 date: $date,
                 notes: $notes,
                 selectedAccountID: $selectedAccountID,
@@ -127,12 +132,24 @@ struct EditTransactionSheet: View {
 
     private func show(_ transaction: Transaction, counterpartAccountID: UUID? = nil) {
         amountText = AmountFormatter.text(from: transaction.amount)
-        isOutflow = transaction.amount < 0
         date = Transaction.date(from: transaction.date)
         notes = transaction.notes
-        selectedAccountID = transaction.accountID
-        transferAccountID = counterpartAccountID ?? transaction.accountID
-        loadedCounterpartAccountID = counterpartAccountID
+        if let counterpartAccountID {
+            kind = .transfer
+            if transaction.amount < 0 {
+                selectedAccountID = transaction.accountID
+                transferAccountID = counterpartAccountID
+            } else {
+                selectedAccountID = counterpartAccountID
+                transferAccountID = transaction.accountID
+            }
+        } else {
+            kind = transaction.amount < 0 ? .expense : .income
+            selectedAccountID = transaction.accountID
+            transferAccountID = transaction.accountID
+        }
+        loadedSelectedAccountID = selectedAccountID
+        loadedTransferAccountID = transferAccountID
     }
 
     private var title: String {
@@ -153,8 +170,8 @@ struct EditTransactionSheet: View {
             ConvertTransferToTransaction.canExecute(amount: signedAmount)
         case .transfer where isMove:
             ReplaceTransfer.canExecute(
-                fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
-                toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                fromAccountID: selectedAccountID,
+                toAccountID: transferAccountID,
                 amount: abs(signedAmount)
             )
         case .transfer:
@@ -206,8 +223,8 @@ struct EditTransactionSheet: View {
                 )
             case .transfer(let transferID) where isMove:
                 guard ReplaceTransfer.canExecute(
-                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
-                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    fromAccountID: selectedAccountID,
+                    toAccountID: transferAccountID,
                     amount: abs(signedAmount)
                 ) else {
                     saveID = nil
@@ -215,8 +232,8 @@ struct EditTransactionSheet: View {
                 }
                 try await ReplaceTransfer(unitOfWork: unitOfWork).execute(
                     id: transferID,
-                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
-                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    fromAccountID: selectedAccountID,
+                    toAccountID: transferAccountID,
                     date: date,
                     amount: abs(signedAmount),
                     notes: notes
@@ -228,7 +245,7 @@ struct EditTransactionSheet: View {
                 }
                 try await EditTransfer(unitOfWork: unitOfWork).execute(
                     id: transferID,
-                    accountID: accountID,
+                    accountID: selectedAccountID,
                     date: date,
                     amount: signedAmount,
                     notes: notes

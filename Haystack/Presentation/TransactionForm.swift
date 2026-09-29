@@ -7,7 +7,7 @@ private enum PickerField: Identifiable {
     var id: Self { self }
 }
 
-private enum TransactionKind: Hashable {
+enum TransactionKind: Hashable {
     case expense
     case income
     case transfer
@@ -15,7 +15,7 @@ private enum TransactionKind: Hashable {
 
 struct TransactionForm: View {
     @Binding var amountText: String
-    @Binding var isOutflow: Bool
+    @Binding var kind: TransactionKind
     @Binding var date: Date
     @Binding var notes: String
     @Binding var selectedAccountID: UUID
@@ -34,11 +34,11 @@ struct TransactionForm: View {
             picker = .account
         } label: {
             HStack {
-                let title = switch transactionKind {
+                let title = switch kind {
                 case .expense, .income:
                     "Account"
                 case .transfer:
-                    isOutflow ? "Transfer From" : "Transfer To"
+                    "Transfer From"
                 }
                 Text(title)
                 Spacer()
@@ -57,7 +57,7 @@ struct TransactionForm: View {
             picker = .transfer
         } label: {
             HStack {
-                Text(isOutflow ? "Transfer To" : "Transfer From")
+                Text("Transfer To")
                 Spacer()
                 Text(name(of: account(with: transferAccountID)))
                     .foregroundStyle(.secondary)
@@ -71,18 +71,18 @@ struct TransactionForm: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            KindPicker(kind: kind)
+            KindPicker(kind: $kind)
             AmountBlock(
                 amountInCents: amountInCents,
                 selectedAccount: account(with: selectedAccountID),
                 transferAccount: account(with: transferAccountID),
-                isOutflow: isOutflow
+                kind: kind
             )
             Form {
                 // TODO: payee
                 Section {
                     accountRow
-                    if transactionKind == .transfer {
+                    if kind == .transfer {
                         transferRow
                     }
                     DatePicker(
@@ -113,6 +113,19 @@ struct TransactionForm: View {
         }
         .task {
             accounts = await accounts()
+        }
+        .onChange(of: kind) { oldValue, newValue in
+            switch newValue {
+            case .expense, .income:
+                transferAccountID = selectedAccountID
+            case .transfer:
+                guard selectedAccountID == transferAccountID else { return }
+                guard let other = accounts.first(where: { $0.id != selectedAccountID }) else {
+                    kind = oldValue
+                    return
+                }
+                transferAccountID = other.id
+            }
         }
         .onChange(of: selectedAccountID) { oldValue, newValue in
             if transferAccountID == oldValue {
@@ -145,37 +158,6 @@ struct TransactionForm: View {
     }
 
     // MARK: Helpers
-
-    private var kind: Binding<TransactionKind> {
-        Binding(
-            get: { transactionKind },
-            set: { newValue in
-                guard newValue != transactionKind else { return }
-                switch newValue {
-                case .expense:
-                    isOutflow = true
-                    transferAccountID = selectedAccountID
-                case .income:
-                    isOutflow = false
-                    transferAccountID = selectedAccountID
-                case .transfer:
-                    guard let other = accounts.first(where: { $0.id != selectedAccountID }) else { return }
-                    isOutflow = true
-                    transferAccountID = other.id
-                }
-            }
-        )
-    }
-
-    private var transactionKind: TransactionKind {
-        if selectedAccountID != transferAccountID {
-            .transfer
-        } else if isOutflow {
-            .expense
-        } else {
-            .income
-        }
-    }
 
     private func account(with id: UUID) -> Account? {
         accounts.first { $0.id == id }
@@ -218,7 +200,7 @@ private struct AmountBlock: View {
     var amountInCents: Int
     var selectedAccount: Account?
     var transferAccount: Account?
-    var isOutflow: Bool
+    var kind: TransactionKind
 
     var body: some View {
         VStack(spacing: 6) {
@@ -266,17 +248,7 @@ private struct AmountBlock: View {
         case .income:
             "Into \(name(of: selectedAccount))"
         case .transfer:
-            "\(name(of: isOutflow ? selectedAccount : transferAccount)) → \(name(of: isOutflow ? transferAccount : selectedAccount))"
-        }
-    }
-
-    private var kind: TransactionKind {
-        if selectedAccount?.id != transferAccount?.id {
-            .transfer
-        } else if isOutflow {
-            .expense
-        } else {
-            .income
+            "\(name(of: selectedAccount)) → \(name(of: transferAccount))"
         }
     }
 }

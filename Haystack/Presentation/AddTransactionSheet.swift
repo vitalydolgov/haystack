@@ -7,7 +7,7 @@ struct AddTransactionSheet: View {
     let accountID: UUID
 
     @State private var amountText = ""
-    @State private var isOutflow = true
+    @State private var kind: TransactionKind = .expense
     @State private var date = Date()
     @State private var notes = ""
     @State private var selectedAccountID: UUID
@@ -28,19 +28,24 @@ struct AddTransactionSheet: View {
     }
 
     private var isTransfer: Bool {
-        selectedAccountID != transferAccountID
+        kind == .transfer
     }
 
     private var signedAmount: Decimal {
         let amount = abs(parsedAmount ?? 0)
-        return isOutflow ? -amount : amount
+        switch kind {
+        case .income:
+            return amount
+        case .expense, .transfer:
+            return -amount
+        }
     }
 
     var body: some View {
         NavigationStack {
             TransactionForm(
                 amountText: $amountText,
-                isOutflow: $isOutflow,
+                kind: $kind,
                 date: $date,
                 notes: $notes,
                 selectedAccountID: $selectedAccountID,
@@ -76,8 +81,8 @@ struct AddTransactionSheet: View {
     private var canSave: Bool {
         if isTransfer {
             AddTransfer.canExecute(
-                fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
-                toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                fromAccountID: selectedAccountID,
+                toAccountID: transferAccountID,
                 amount: abs(signedAmount)
             )
         } else {
@@ -89,13 +94,13 @@ struct AddTransactionSheet: View {
         do {
             if isTransfer {
                 guard AddTransfer.canExecute(
-                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
-                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    fromAccountID: selectedAccountID,
+                    toAccountID: transferAccountID,
                     amount: abs(signedAmount)
                 ) else { return }
                 _ = try await AddTransfer(unitOfWork: unitOfWork).execute(
-                    fromAccountID: isOutflow ? selectedAccountID : transferAccountID,
-                    toAccountID: isOutflow ? transferAccountID : selectedAccountID,
+                    fromAccountID: selectedAccountID,
+                    toAccountID: transferAccountID,
                     date: date,
                     amount: abs(signedAmount),
                     notes: notes
