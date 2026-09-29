@@ -11,24 +11,19 @@ struct AddTransactionSheet: View {
     @State private var date = Date()
     @State private var notes = ""
     @State private var selectedAccountID: UUID
-    @State private var transferAccountID: UUID
+    @State private var counterpartAccountID: UUID?
 
     @State private var saveID: UUID?
 
     init(accountID: UUID) {
         self.accountID = accountID
         _selectedAccountID = State(initialValue: accountID)
-        _transferAccountID = State(initialValue: accountID)
     }
 
     private var parsedAmount: Decimal? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return Decimal(string: trimmed, locale: .current)
-    }
-
-    private var isTransfer: Bool {
-        kind == .transfer
     }
 
     private var signedAmount: Decimal {
@@ -49,7 +44,7 @@ struct AddTransactionSheet: View {
                 date: $date,
                 notes: $notes,
                 selectedAccountID: $selectedAccountID,
-                transferAccountID: $transferAccountID,
+                counterpartAccountID: $counterpartAccountID,
             )
             .navigationTitle("Add Transaction")
             .navigationBarTitleDisplayMode(.inline)
@@ -79,28 +74,31 @@ struct AddTransactionSheet: View {
     }
 
     private var canSave: Bool {
-        if isTransfer {
-            AddTransfer.canExecute(
+        if case .transfer = kind {
+            guard let counterpartAccountID else {
+                return false
+            }
+            return AddTransfer.canExecute(
                 fromAccountID: selectedAccountID,
-                toAccountID: transferAccountID,
+                toAccountID: counterpartAccountID,
                 amount: abs(signedAmount)
             )
         } else {
-            AddTransaction.canExecute(amount: signedAmount)
+            return AddTransaction.canExecute(amount: signedAmount)
         }
     }
 
     private func save() async {
         do {
-            if isTransfer {
+            if case .transfer = kind, let counterpartAccountID {
                 guard AddTransfer.canExecute(
                     fromAccountID: selectedAccountID,
-                    toAccountID: transferAccountID,
+                    toAccountID: counterpartAccountID,
                     amount: abs(signedAmount)
                 ) else { return }
                 _ = try await AddTransfer(unitOfWork: unitOfWork).execute(
                     fromAccountID: selectedAccountID,
-                    toAccountID: transferAccountID,
+                    toAccountID: counterpartAccountID,
                     date: date,
                     amount: abs(signedAmount),
                     notes: notes
