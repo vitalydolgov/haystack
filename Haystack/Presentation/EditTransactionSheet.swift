@@ -126,20 +126,13 @@ struct EditTransactionSheet: View {
     }
 
     private func show(_ transaction: Transaction, counterpartAccountID: UUID? = nil) {
-        amountText = Self.formattedAmount(transaction.amount)
+        amountText = AmountFormatter.text(from: transaction.amount)
         isOutflow = transaction.amount < 0
         date = Transaction.date(from: transaction.date)
         notes = transaction.notes
         selectedAccountID = transaction.accountID
         transferAccountID = counterpartAccountID ?? transaction.accountID
         loadedCounterpartAccountID = counterpartAccountID
-    }
-
-    private static func formattedAmount(_ amount: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = .current
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSDecimalNumber(decimal: abs(amount))) ?? ""
     }
 
     private var title: String {
