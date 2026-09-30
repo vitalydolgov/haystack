@@ -33,6 +33,7 @@ struct AccountPicker: View {
             HStack {
                 Image(systemName: "checkmark")
                     .opacity(account.id == selectedID ? 1 : 0)
+                AccountMarker(type: account.type)
                 Text(account.name)
                 Spacer()
                 Text(account.balance, format: .currency(code: AmountFormatter.currencyCode))

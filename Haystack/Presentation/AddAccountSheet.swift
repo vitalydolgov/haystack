@@ -39,6 +39,7 @@ struct AddAccountSheet: View {
                         saveID = UUID()
                     }
                     .labelStyle(.iconOnly)
+                    .tint(DeosaiTheme.sky)
                     .disabled(!canSave || saveID != nil)
                 }
             }

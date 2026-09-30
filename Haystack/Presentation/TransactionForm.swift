@@ -211,14 +211,35 @@ struct TransactionForm: View {
 private struct KindPicker: View {
     @Binding var kind: TransactionKind
 
-    var body: some View {
-        Picker("Kind", selection: $kind) {
-            Text("Expense").tag(TransactionKind.expense)
-            Text("Income").tag(TransactionKind.income)
-            Text("Transfer").tag(TransactionKind.transfer)
+    // MARK: Views
+
+    private func chip(_ value: TransactionKind, title: String) -> some View {
+        let isSelected = kind == value
+        return Button {
+            kind = value
+        } label: {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(isSelected ? Color.black : Color.primary)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(isSelected ? DeosaiTheme.straw : Color(.systemBackground), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(isSelected ? Color.clear : Color(.systemGray4), lineWidth: 1)
+                }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            chip(.expense, title: "Expense")
+            chip(.income, title: "Income")
+            chip(.transfer, title: "Transfer")
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 4)
