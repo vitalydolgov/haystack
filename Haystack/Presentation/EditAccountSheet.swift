@@ -47,6 +47,7 @@ struct EditAccountSheet: View {
                         saveID = UUID()
                     }
                     .labelStyle(.iconOnly)
+                    .tint(DeosaiTheme.sky)
                     .disabled(!canSave || saveID != nil)
                 }
                 ToolbarItemGroup(placement: .secondaryAction) {

@@ -3,12 +3,14 @@ import SwiftUI
 private struct AccountRow: Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
+    let type: AccountType
     let balance: Decimal
     let isClosed: Bool
 
     init(_ account: Account) {
         id = account.id
         name = account.name
+        type = account.type
         balance = account.balance
         isClosed = account.isClosed
     }
@@ -34,6 +36,7 @@ struct AccountsView: View {
     private func accountRow(_ account: AccountRow) -> some View {
         NavigationLink(value: Route.transactions(accountID: account.id)) {
             HStack {
+                AccountMarker(type: account.type)
                 Text(account.name)
                 Spacer()
                 Text(account.balance, format: .currency(code: currencyCode))
@@ -83,7 +86,7 @@ struct AccountsView: View {
         .navigationTitle("Accounts")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Add Account", systemImage: "plus") {
+                Button("Add Account", systemImage: "folder.badge.plus") {
                     navigator.present(.addAccount)
                 }
             }
