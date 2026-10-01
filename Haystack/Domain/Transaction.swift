@@ -3,9 +3,27 @@ import Foundation
 enum TransactionType: Codable, Sendable, Equatable {
     case standard
     case transfer(UUID)
+    case split(UUID)
+    indirect case splitPart(UUID, TransactionType)
 
     var transferID: UUID? {
-        if case .transfer(let id) = self { id } else { nil }
+        switch self {
+        case .transfer(let id):
+            id
+        case .splitPart(_, let type):
+            type.transferID
+        default:
+            nil
+        }
+    }
+
+    var splitID: UUID? {
+        switch self {
+        case .split(let id), .splitPart(let id, _):
+            id
+        default:
+            nil
+        }
     }
 }
 
