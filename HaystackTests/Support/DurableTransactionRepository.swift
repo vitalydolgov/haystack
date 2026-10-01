@@ -13,6 +13,12 @@ struct DurableTransactionRepository: TransactionRepository {
         try await unitOfWork.perform { try await $0.transactions.save(transaction) }
     }
 
+    func save(batch: [Transaction]) async throws {
+        try await unitOfWork.perform { store in
+            try await store.transactions.save(batch: batch)
+        }
+    }
+
     func query(id: UUID) async throws -> Transaction? {
         try await unitOfWork.store.transactions.query(id: id)
     }

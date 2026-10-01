@@ -10,6 +10,12 @@ actor InMemoryTransactionRepository: TransactionRepository {
         transactions[transaction.id] = transaction
     }
 
+    func save(batch: [Transaction]) {
+        for transaction in batch {
+            save(transaction)
+        }
+    }
+
     func query(id: UUID) -> Transaction? {
         transactions[id]
     }

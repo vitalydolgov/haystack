@@ -19,6 +19,12 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         }
     }
 
+    func save(batch: [Transaction]) throws {
+        for transaction in batch {
+            try save(transaction)
+        }
+    }
+
     func query(id: UUID) throws -> Transaction? {
         let transactionID = id
         var descriptor = FetchDescriptor<TransactionRecord>(

@@ -68,6 +68,43 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(try await transactions.query(id: transaction.id) == nil)
     }
 
+    // MARK: Save Batch
+
+    @Test func savesEveryTransaction() async throws {
+        let (_, transactions) = try await makeStore()
+        let rent = try Transaction.make(amount: -100, notes: "Rent")
+        let pay = try Transaction.make(amount: 200, notes: "Pay")
+        try await transactions.save(batch: [rent, pay])
+
+        #expect(try await transactions.query(id: rent.id)?.notes == "Rent")
+        #expect(try await transactions.query(id: pay.id)?.notes == "Pay")
+    }
+
+    @Test func updatesStoredTransactions() async throws {
+        let (_, transactions) = try await makeStore()
+        let rent = try Transaction.make(notes: "Rent")
+        let pay = try Transaction.make(notes: "Pay")
+        try await transactions.save(batch: [rent, pay])
+        let updatedRent = try Transaction.make(id: rent.id, accountID: rent.accountID, notes: "Rent paid")
+        let updatedPay = try Transaction.make(id: pay.id, accountID: pay.accountID, notes: "Pay received")
+        try await transactions.save(batch: [updatedRent, updatedPay])
+
+        #expect(try await transactions.query(id: rent.id)?.notes == "Rent paid")
+        #expect(try await transactions.query(id: pay.id)?.notes == "Pay received")
+    }
+
+    @Test func skipsDeletedTransaction() async throws {
+        let (_, transactions) = try await makeStore()
+        let deleted = try Transaction.make(notes: "Gone")
+        try await transactions.save(deleted)
+        try await transactions.delete(deleted.delete(at: Date(timeIntervalSince1970: 1_700_000_000)))
+        let kept = try Transaction.make(notes: "Kept")
+        try await transactions.save(batch: [deleted, kept])
+
+        #expect(try await transactions.query(id: deleted.id) == nil)
+        #expect(try await transactions.query(id: kept.id)?.notes == "Kept")
+    }
+
     // MARK: Query
 
     @Test func findsALiveTransaction() async throws {
