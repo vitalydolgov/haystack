@@ -10,7 +10,7 @@ struct AdjustBalanceTests {
         let account = try Account.make()
         await accounts.save(account)
 
-        try await AdjustBalance(unitOfWork: unitOfWork)
+        _ = try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
         let stored = try #require(try await accounts.query(id: account.id))
         #expect(stored.balance(await transactions.query(.account(stored.id))) == 25)
@@ -24,7 +24,7 @@ struct AdjustBalanceTests {
         let account = try Account.make()
         await accounts.save(account)
 
-        try await AdjustBalance(unitOfWork: unitOfWork)
+        _ = try await AdjustBalance(unitOfWork: unitOfWork)
             .execute(id: account.id, to: 25)
 
         let recorded = await transactions.query(.account(account.id))
