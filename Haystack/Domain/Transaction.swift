@@ -1,9 +1,12 @@
 import Foundation
 
-enum TransactionType: String, Codable, Sendable, Equatable, CaseIterable {
+enum TransactionType: Codable, Sendable, Equatable {
     case standard
-    case adjustment
-    case transfer
+    case transfer(UUID)
+
+    var transferID: UUID? {
+        if case .transfer(let id) = self { id } else { nil }
+    }
 }
 
 enum TransferError: Error, Equatable, Sendable {
@@ -18,11 +21,15 @@ enum TransactionError: Error, Equatable, Sendable {
     case notFound
 }
 
+enum SplitError: Error, Equatable, Sendable {
+    case invalid
+    case invalidAmount
+}
+
 struct Transaction: Identifiable, Equatable, Sendable {
     let id: UUID
     let accountID: UUID
     let type: TransactionType
-    let transferID: UUID?
     private(set) var date: (year: Int, month: Int, day: Int)
     private(set) var amount: Decimal
     private(set) var notes: String
@@ -34,15 +41,13 @@ struct Transaction: Identifiable, Equatable, Sendable {
         amount: Decimal,
         notes: String = "",
         type: TransactionType = .standard,
-        transferID: UUID? = nil
     ) throws {
         self.id = id
         self.accountID = accountID
         self.date = try Self.validatedDate(date)
-        self.amount = amount
+        self.amount = try Self.validatedAmount(amount)
         self.notes = notes
         self.type = type
-        self.transferID = transferID
     }
 
     mutating func update(
@@ -50,13 +55,20 @@ struct Transaction: Identifiable, Equatable, Sendable {
         amount: Decimal,
         notes: String
     ) throws {
-        self.date = try Self.validatedDate(date)
+        let date = try Self.validatedDate(date)
+        let amount = try Self.validatedAmount(amount)
+        self.date = date
         self.amount = amount
         self.notes = notes
     }
 
     func delete(at date: Date = .now) -> DeletedTransaction {
         DeletedTransaction(id: id, deletedAt: date)
+    }
+
+    private static func validatedAmount(_ amount: Decimal) throws -> Decimal {
+        guard amount != 0 else { throw TransactionError.invalidAmount }
+        return amount
     }
 
     private static func validatedDate(

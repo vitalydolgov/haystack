@@ -16,15 +16,13 @@ struct ConvertTransferToTransactionTests {
             accountID: fromAccount.id,
             amount: -12.5,
             notes: "Gift",
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 12.5,
             notes: "Gift",
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -41,7 +39,7 @@ struct ConvertTransferToTransactionTests {
         let stored = try #require(await transactions.query(id: fromLeg.id))
         #expect(stored.accountID == fromAccount.id)
         #expect(stored.type == .standard)
-        #expect(stored.transferID == nil)
+        #expect(stored.type.transferID == nil)
         #expect(stored.amount == -20)
         #expect(stored.notes == "Coffee")
         #expect(stored.date == date.asYearMonthDay())
@@ -65,14 +63,12 @@ struct ConvertTransferToTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -12.5,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 12.5,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -87,7 +83,7 @@ struct ConvertTransferToTransactionTests {
         let stored = try #require(await transactions.query(id: toLeg.id))
         #expect(stored.accountID == toAccount.id)
         #expect(stored.type == .standard)
-        #expect(stored.transferID == nil)
+        #expect(stored.type.transferID == nil)
         #expect(await transactions.query(id: fromLeg.id) == nil)
     }
 
@@ -105,14 +101,12 @@ struct ConvertTransferToTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -12.5,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 12.5,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -155,8 +149,8 @@ struct ConvertTransferToTransactionTests {
         let other = try Account.make(name: "Other")
         await accounts.save(other)
         let transferID = UUID()
-        let fromLeg = try Transaction.make(amount: -10, type: .transfer, transferID: transferID)
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let fromLeg = try Transaction.make(amount: -10, type: .transfer(transferID))
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
@@ -168,8 +162,8 @@ struct ConvertTransferToTransactionTests {
                 amount: 10
             )
         }
-        #expect(await transactions.query(id: fromLeg.id)?.type == .transfer)
-        #expect(await transactions.query(id: toLeg.id)?.type == .transfer)
+        #expect(await transactions.query(id: fromLeg.id)?.type.transferID != nil)
+        #expect(await transactions.query(id: toLeg.id)?.type.transferID != nil)
     }
 
     @Test func failsWhenAccountIsMissing() async throws {
@@ -181,10 +175,9 @@ struct ConvertTransferToTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: accountID,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
@@ -211,14 +204,12 @@ struct ConvertTransferToTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: account.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: other.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -231,8 +222,8 @@ struct ConvertTransferToTransactionTests {
                 amount: -10
             )
         }
-        #expect(await transactions.query(id: fromLeg.id)?.transferID == transferID)
-        #expect(await transactions.query(id: toLeg.id)?.transferID == transferID)
+        #expect(await transactions.query(id: fromLeg.id)?.type.transferID == transferID)
+        #expect(await transactions.query(id: toLeg.id)?.type.transferID == transferID)
     }
 
     @Test func failsWhenAmountIsZero() async throws {
@@ -245,10 +236,9 @@ struct ConvertTransferToTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: account.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
@@ -260,7 +250,7 @@ struct ConvertTransferToTransactionTests {
                 amount: 0
             )
         }
-        #expect(await transactions.query(id: fromLeg.id)?.type == .transfer)
-        #expect(await transactions.query(id: toLeg.id)?.type == .transfer)
+        #expect(await transactions.query(id: fromLeg.id)?.type.transferID != nil)
+        #expect(await transactions.query(id: toLeg.id)?.type.transferID != nil)
     }
 }

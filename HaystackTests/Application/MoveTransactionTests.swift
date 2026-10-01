@@ -165,14 +165,12 @@ struct MoveTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: source.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: counterpart.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)

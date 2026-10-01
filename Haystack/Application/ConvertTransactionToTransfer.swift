@@ -24,7 +24,7 @@ struct ConvertTransactionToTransfer {
 
         // remove old transaction
         guard let transaction = try await store.transactions.query(id: id),
-              transaction.type == .standard else {
+              transaction.type.transferID == nil else {
             throw TransactionError.notFound
         }
         guard var transactionAccount = try await store.accounts.query(id: transaction.accountID) else {
@@ -41,16 +41,14 @@ struct ConvertTransactionToTransfer {
             date: date.asYearMonthDay(),
             amount: amount,
             notes: notes,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let counterpartTx = try Transaction(
             accountID: counterpartAccountID,
             date: date.asYearMonthDay(),
             amount: -amount,
             notes: notes,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
 
         // update account balance

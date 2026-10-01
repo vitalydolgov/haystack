@@ -28,7 +28,7 @@ struct AdjustBalanceTests {
             .execute(id: account.id, to: 25)
 
         let recorded = await transactions.query(.account(account.id))
-        #expect(recorded.map(\.type) == [.adjustment])
+        #expect(recorded.map(\.type) == [.standard])
     }
 
     // MARK: Errors

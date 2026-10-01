@@ -17,14 +17,12 @@ struct ReplaceTransferTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -49,14 +47,14 @@ struct ReplaceTransferTests {
         #expect(outflow.amount == -40)
         #expect(outflow.notes == "Rent")
         #expect(outflow.date == date.asYearMonthDay())
-        #expect(outflow.type == .transfer)
+        #expect(outflow.type.transferID != nil)
         #expect(inflow.accountID == toAccount.id)
         #expect(inflow.amount == 40)
         #expect(inflow.notes == "Rent")
         #expect(inflow.date == date.asYearMonthDay())
-        #expect(inflow.type == .transfer)
-        #expect(outflow.transferID == inflow.transferID)
-        #expect(outflow.transferID != transferID)
+        #expect(inflow.type.transferID != nil)
+        #expect(outflow.type.transferID == inflow.type.transferID)
+        #expect(outflow.type.transferID != transferID)
         #expect(try await accounts.query(id: fromAccount.id)?.balance == 0)
         #expect(try await accounts.query(id: toAccount.id)?.balance == 40)
         #expect(try await accounts.query(id: nextAccount.id)?.balance == -40)
@@ -76,14 +74,12 @@ struct ReplaceTransferTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -113,14 +109,12 @@ struct ReplaceTransferTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -171,14 +165,12 @@ struct ReplaceTransferTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)

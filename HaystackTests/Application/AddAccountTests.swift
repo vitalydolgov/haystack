@@ -33,7 +33,7 @@ struct AddAccountTests {
         )
 
         let recorded = await transactions.query(.account(added.id))
-        #expect(recorded.map(\.type) == [.adjustment])
+        #expect(recorded.map(\.type) == [.standard])
     }
 
     @Test func doesNotRecordAnAdjustmentWhenBalanceIsZero() async throws {

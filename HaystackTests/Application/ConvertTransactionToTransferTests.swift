@@ -31,16 +31,16 @@ struct ConvertTransactionToTransferTests {
 
         let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == account.id)
-        #expect(stored.type == .transfer)
+        #expect(stored.type.transferID != nil)
         #expect(stored.amount == -12.5)
         #expect(stored.notes == "Coffee")
         #expect(stored.date == date.asYearMonthDay())
 
-        let transferID = try #require(stored.transferID)
+        let transferID = try #require(stored.type.transferID)
         let counterpart = try #require(await transactions.all().first { $0.id != stored.id })
         #expect(counterpart.accountID == counterpartAccount.id)
-        #expect(counterpart.type == .transfer)
-        #expect(counterpart.transferID == transferID)
+        #expect(counterpart.type.transferID != nil)
+        #expect(counterpart.type.transferID == transferID)
         #expect(counterpart.amount == 12.5)
         #expect(counterpart.notes == "Coffee")
         #expect(counterpart.date == date.asYearMonthDay())
@@ -98,10 +98,10 @@ struct ConvertTransactionToTransferTests {
 
         let stored = try #require(await transactions.query(id: transaction.id))
         #expect(stored.accountID == targetAccount.id)
-        #expect(stored.type == .transfer)
+        #expect(stored.type.transferID != nil)
         let counterpart = try #require(await transactions.all().first { $0.id != stored.id })
         #expect(counterpart.accountID == counterpartAccount.id)
-        #expect(counterpart.transferID == stored.transferID)
+        #expect(counterpart.type.transferID == stored.type.transferID)
     }
 
     // MARK: Errors
@@ -161,10 +161,9 @@ struct ConvertTransactionToTransferTests {
         let fromLeg = try Transaction.make(
             accountID: account.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
@@ -177,8 +176,8 @@ struct ConvertTransactionToTransferTests {
                 amount: -10
             )
         }
-        #expect(await transactions.query(id: fromLeg.id)?.transferID == transferID)
-        #expect(await transactions.query(id: toLeg.id)?.transferID == transferID)
+        #expect(await transactions.query(id: fromLeg.id)?.type.transferID == transferID)
+        #expect(await transactions.query(id: toLeg.id)?.type.transferID == transferID)
         #expect(await transactions.all().count == 2)
     }
 

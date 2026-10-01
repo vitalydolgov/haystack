@@ -28,16 +28,14 @@ struct AddTransfer {
             date: (year: components.year!, month: components.month!, day: components.day!),
             amount: -amount,
             notes: notes,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction(
             accountID: toAccountID,
             date: (year: components.year!, month: components.month!, day: components.day!),
             amount: amount,
             notes: notes,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
 
         // add outgoing leg

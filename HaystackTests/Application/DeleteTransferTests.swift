@@ -15,14 +15,12 @@ struct DeleteTransferTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)

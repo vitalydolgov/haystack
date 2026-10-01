@@ -52,8 +52,8 @@ struct DeleteTransactionTests {
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
         let transferID = UUID()
-        let fromLeg = try Transaction.make(amount: -10, type: .transfer, transferID: transferID)
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let fromLeg = try Transaction.make(amount: -10, type: .transfer(transferID))
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 

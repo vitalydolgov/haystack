@@ -21,7 +21,7 @@ enum TransactionKind: Hashable {
     }
 
     init(of transaction: Transaction) {
-        if transaction.transferID != nil {
+        if transaction.type.transferID != nil {
             self = .transfer
         } else if transaction.amount < 0 {
             self = .expense

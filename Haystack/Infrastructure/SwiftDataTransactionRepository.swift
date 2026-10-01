@@ -48,7 +48,7 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
 
     func queryCounterpart(transactionID: UUID) throws -> Transaction? {
         guard let transaction = try query(id: transactionID),
-              let transferID = transaction.transferID,
+              let transferID = transaction.type.transferID,
               let (outflow, inflow) = try queryTransfer(id: transferID) else { return nil }
         if outflow.id == transaction.id { return inflow }
         if inflow.id == transaction.id { return outflow }

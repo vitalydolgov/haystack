@@ -14,7 +14,7 @@ struct TransactionTests {
             date: (year: 2024, month: 1, day: 1),
             amount: -5,
             notes: "changed",
-            type: .adjustment
+            type: .standard
         )
 
         #expect(left == right)

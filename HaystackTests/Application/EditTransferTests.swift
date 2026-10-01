@@ -17,15 +17,13 @@ struct EditTransferTests {
             accountID: fromAccountID,
             amount: -10,
             notes: "Gift",
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccount.id,
             amount: 10,
             notes: "Gift",
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -62,14 +60,12 @@ struct EditTransferTests {
         let fromLeg = try Transaction.make(
             accountID: fromAccount.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: toAccountID,
             amount: 10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
@@ -101,8 +97,8 @@ struct EditTransferTests {
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
         let transferID = UUID()
-        let fromLeg = try Transaction.make(amount: -10, type: .transfer, transferID: transferID)
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let fromLeg = try Transaction.make(amount: -10, type: .transfer(transferID))
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 
@@ -136,8 +132,8 @@ struct EditTransferTests {
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
         let transferID = UUID()
-        let fromLeg = try Transaction.make(amount: -10, type: .transfer, transferID: transferID)
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let fromLeg = try Transaction.make(amount: -10, type: .transfer(transferID))
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 

@@ -18,7 +18,7 @@ struct EditTransaction {
     ) async throws {
         guard amount != 0 else { throw TransactionError.invalidAmount }
         guard let currentTx = try await store.transactions.query(id: id),
-              currentTx.type != .transfer,
+              currentTx.type.transferID == nil,
               currentTx.accountID == accountID else {
             throw TransactionError.notFound
         }

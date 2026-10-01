@@ -14,7 +14,7 @@ struct SwiftDataTransactionRepositoryTests {
             date: (year: 2024, month: 3, day: 15),
             amount: -42.5,
             notes: "Groceries",
-            type: .adjustment
+            type: .standard
         )
         try await writer.save(transaction)
 
@@ -24,8 +24,8 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(stored.date == (year: 2024, month: 3, day: 15))
         #expect(stored.amount == -42.5)
         #expect(stored.notes == "Groceries")
-        #expect(stored.type == .adjustment)
-        #expect(stored.transferID == nil)
+        #expect(stored.type == .standard)
+        #expect(stored.type.transferID == nil)
     }
 
     @Test func updatesAnExistingTransactionInPlace() async throws {
@@ -133,14 +133,12 @@ struct SwiftDataTransactionRepositoryTests {
         let fromLeg = try Transaction.make(
             accountID: UUID(),
             amount: -50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: UUID(),
             amount: 50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         try await writer.save(fromLeg)
         try await writer.save(toLeg)
@@ -148,8 +146,8 @@ struct SwiftDataTransactionRepositoryTests {
         let (foundFrom, foundTo) = try #require(try await reader(container).queryTransfer(id: transferID))
         #expect(foundFrom.id == fromLeg.id)
         #expect(foundTo.id == toLeg.id)
-        #expect(foundFrom.transferID == transferID)
-        #expect(foundTo.transferID == transferID)
+        #expect(foundFrom.type.transferID == transferID)
+        #expect(foundTo.type.transferID == transferID)
     }
 
     @Test func hidesDeletedTransferLeg() async throws {
@@ -158,14 +156,12 @@ struct SwiftDataTransactionRepositoryTests {
         let fromLeg = try Transaction.make(
             accountID: UUID(),
             amount: -50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: UUID(),
             amount: 50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         try await writer.save(fromLeg)
         try await writer.save(toLeg)
@@ -187,14 +183,12 @@ struct SwiftDataTransactionRepositoryTests {
         let fromLeg = try Transaction.make(
             accountID: UUID(),
             amount: -50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             accountID: UUID(),
             amount: 50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         try await writer.save(fromLeg)
         try await writer.save(toLeg)
@@ -222,13 +216,11 @@ struct SwiftDataTransactionRepositoryTests {
         let transferID = UUID()
         let fromLeg = try Transaction.make(
             amount: -50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             amount: 50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         try await writer.save(fromLeg)
         try await writer.save(toLeg)
@@ -242,13 +234,11 @@ struct SwiftDataTransactionRepositoryTests {
         let transferID = UUID()
         let fromLeg = try Transaction.make(
             amount: -50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         let toLeg = try Transaction.make(
             amount: 50,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
         try await transactions.save(fromLeg)
         try await transactions.save(toLeg)
@@ -261,8 +251,7 @@ struct SwiftDataTransactionRepositoryTests {
         let (_, transactions) = try await makeStore()
         let leg = try Transaction.make(
             amount: -50,
-            type: .transfer,
-            transferID: UUID()
+            type: .transfer(UUID())
         )
         try await transactions.save(leg)
 

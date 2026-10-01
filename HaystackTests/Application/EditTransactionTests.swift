@@ -190,10 +190,9 @@ struct EditTransactionTests {
         let fromLeg = try Transaction.make(
             accountID: account.id,
             amount: -10,
-            type: .transfer,
-            transferID: transferID
+            type: .transfer(transferID)
         )
-        let toLeg = try Transaction.make(amount: 10, type: .transfer, transferID: transferID)
+        let toLeg = try Transaction.make(amount: 10, type: .transfer(transferID))
         await transactions.save(fromLeg)
         await transactions.save(toLeg)
 

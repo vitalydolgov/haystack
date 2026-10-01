@@ -16,7 +16,7 @@ struct AdjustBalance {
             accountID: id,
             date: date.asYearMonthDay(),
             amount: delta,
-            type: .adjustment
+            type: .standard
         )
         account += transaction
         try await store.accounts.save(account)

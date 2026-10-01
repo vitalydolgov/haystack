@@ -40,7 +40,7 @@ final class TransactionRecord {
             packedDate: Self.packedDate(from: transaction.date),
             amount: transaction.amount,
             notes: transaction.notes,
-            transferID: transaction.transferID,
+            transferID: transaction.type.transferID,
             deletedAt: nil
         )
     }
@@ -52,8 +52,7 @@ final class TransactionRecord {
             date: unpackedDate,
             amount: amount,
             notes: notes,
-            type: type,
-            transferID: transferID
+            type: type
         )
     }
 
@@ -63,7 +62,7 @@ final class TransactionRecord {
         packedDate = Self.packedDate(from: transaction.date)
         amount = transaction.amount
         notes = transaction.notes
-        transferID = transaction.transferID
+        transferID = transaction.type.transferID
     }
 
     var unpackedDate: (year: Int, month: Int, day: Int) {

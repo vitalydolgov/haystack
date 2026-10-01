@@ -26,7 +26,7 @@ actor InMemoryTransactionRepository: TransactionRepository {
     }
 
     func queryTransfer(id: UUID) -> (Transaction, Transaction)? {
-        let legs = transactions.values.filter { $0.transferID == id && tombstones[$0.id] == nil }
+        let legs = transactions.values.filter { $0.type.transferID == id && tombstones[$0.id] == nil }
         guard legs.count == 2 else { return nil }
         let fromLeg = legs.first { $0.amount < 0 }
         let toLeg = legs.first { $0.amount > 0 }
@@ -36,7 +36,7 @@ actor InMemoryTransactionRepository: TransactionRepository {
 
     func queryCounterpart(transactionID: UUID) -> Transaction? {
         guard let transaction = query(id: transactionID),
-              let transferID = transaction.transferID,
+              let transferID = transaction.type.transferID,
               let (fromLeg, toLeg) = queryTransfer(id: transferID) else { return nil }
         if fromLeg.id == transaction.id { return toLeg }
         if toLeg.id == transaction.id { return fromLeg }

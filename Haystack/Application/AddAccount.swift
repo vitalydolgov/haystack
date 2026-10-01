@@ -22,7 +22,7 @@ struct AddAccount {
                 accountID: account.id,
                 date: Date.now.asYearMonthDay(),
                 amount: balance,
-                type: .adjustment
+                type: .standard
             )
             account += transaction
             try await store.transactions.save(transaction)

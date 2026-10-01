@@ -23,14 +23,14 @@ struct AddTransferTests {
 
         #expect(fromLeg.accountID == fromAccount.id)
         #expect(fromLeg.amount == -12.5)
-        #expect(fromLeg.type == .transfer)
+        #expect(fromLeg.type.transferID != nil)
         #expect(fromLeg.notes == "Gift")
-        #expect(fromLeg.transferID == toLeg.transferID)
+        #expect(fromLeg.type.transferID == toLeg.type.transferID)
 
         #expect(toLeg.accountID == toAccount.id)
         #expect(toLeg.amount == 12.5)
-        #expect(toLeg.type == .transfer)
-        #expect(toLeg.transferID == fromLeg.transferID)
+        #expect(toLeg.type.transferID != nil)
+        #expect(toLeg.type.transferID == fromLeg.type.transferID)
 
         let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
         #expect(fromLeg.date == (year: components.year!, month: components.month!, day: components.day!))

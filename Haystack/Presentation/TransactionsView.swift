@@ -38,7 +38,7 @@ struct TransactionsView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     navigator.present(
-                        .editTransaction(transactionID: transaction.id, transferID: transaction.transferID)
+                        .editTransaction(transactionID: transaction.id, transferID: transaction.type.transferID)
                     )
                 }
                 .swipeActions(edge: .leading) {
@@ -61,7 +61,7 @@ struct TransactionsView: View {
         }
         .alert("Delete Transaction", isPresented: isConfirmingDelete, presenting: deletingTransaction) { transaction in
             Button("Delete", role: .destructive) {
-                deleteTransferID = transaction.transferID
+                deleteTransferID = transaction.type.transferID
                 deleteID = transaction.id
             }
         } message: { _ in
