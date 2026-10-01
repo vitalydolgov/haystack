@@ -40,7 +40,7 @@ enum TransactionError: Error, Equatable, Sendable {
 }
 
 enum SplitError: Error, Equatable, Sendable {
-    case invalid
+    case malformed
     case invalidAmount
 }
 
