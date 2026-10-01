@@ -82,7 +82,7 @@ struct AddTransactionSheet: View {
             return AddTransfer.canExecute(
                 fromAccountID: selectedAccountID,
                 toAccountID: counterpartAccountID,
-                amount: abs(signedAmount)
+                magnitude: abs(signedAmount)
             )
         } else {
             return AddTransaction.canExecute(amount: signedAmount)
@@ -95,13 +95,13 @@ struct AddTransactionSheet: View {
                 guard AddTransfer.canExecute(
                     fromAccountID: selectedAccountID,
                     toAccountID: counterpartAccountID,
-                    amount: abs(signedAmount)
+                    magnitude: abs(signedAmount)
                 ) else { return }
                 _ = try await AddTransfer(unitOfWork: unitOfWork).execute(
                     fromAccountID: selectedAccountID,
                     toAccountID: counterpartAccountID,
                     date: date,
-                    amount: abs(signedAmount),
+                    magnitude: abs(signedAmount),
                     notes: notes
                 )
             } else {

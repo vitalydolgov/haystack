@@ -17,7 +17,7 @@ struct AddTransferTests {
             fromAccountID: fromAccount.id,
             toAccountID: toAccount.id,
             date: date,
-            amount: 12.5,
+            magnitude: 12.5,
             notes: "Gift"
         )
 
@@ -52,7 +52,7 @@ struct AddTransferTests {
             try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: account.id,
                 toAccountID: account.id,
-                amount: 10
+                magnitude: 10
             )
         }
         #expect(await transactions.all().isEmpty)
@@ -69,7 +69,7 @@ struct AddTransferTests {
             try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: UUID(),
                 toAccountID: toAccount.id,
-                amount: 10
+                magnitude: 10
             )
         }
         #expect(await transactions.all().isEmpty)
@@ -86,7 +86,7 @@ struct AddTransferTests {
             try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: fromAccount.id,
                 toAccountID: UUID(),
-                amount: 10
+                magnitude: 10
             )
         }
         #expect(await transactions.all().isEmpty)
@@ -105,7 +105,7 @@ struct AddTransferTests {
             try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: fromAccount.id,
                 toAccountID: toAccount.id,
-                amount: 10
+                magnitude: 10
             )
         }
         #expect(await transactions.all().isEmpty)
@@ -124,7 +124,7 @@ struct AddTransferTests {
             try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: fromAccount.id,
                 toAccountID: toAccount.id,
-                amount: 10
+                magnitude: 10
             )
         }
         #expect(await transactions.all().isEmpty)

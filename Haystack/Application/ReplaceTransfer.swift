@@ -23,7 +23,7 @@ struct ReplaceTransfer {
             fromAccountID: fromAccountID,
             toAccountID: toAccountID,
             date: date,
-            amount: amount,
+            magnitude: amount,
             notes: notes
         )
     }

@@ -4,8 +4,8 @@ import TransactionalMacro
 struct AddTransfer {
     let unitOfWork: UnitOfWork
 
-    static func canExecute(fromAccountID: UUID, toAccountID: UUID, amount: Decimal) -> Bool {
-        fromAccountID != toAccountID && amount > 0
+    static func canExecute(fromAccountID: UUID, toAccountID: UUID, magnitude: Decimal) -> Bool {
+        fromAccountID != toAccountID && magnitude > 0
     }
 
     @Transactional
@@ -13,7 +13,7 @@ struct AddTransfer {
         fromAccountID: UUID,
         toAccountID: UUID,
         date: Date = .now,
-        amount: Decimal,
+        magnitude: Decimal,
         notes: String = ""
     ) async throws -> (Transaction, Transaction) {
         guard fromAccountID != toAccountID else {
@@ -26,14 +26,14 @@ struct AddTransfer {
         let fromLeg = try Transaction(
             accountID: fromAccountID,
             date: (year: components.year!, month: components.month!, day: components.day!),
-            amount: -amount,
+            amount: -magnitude,
             notes: notes,
             type: .transfer(transferID)
         )
         let toLeg = try Transaction(
             accountID: toAccountID,
             date: (year: components.year!, month: components.month!, day: components.day!),
-            amount: amount,
+            amount: magnitude,
             notes: notes,
             type: .transfer(transferID)
         )
