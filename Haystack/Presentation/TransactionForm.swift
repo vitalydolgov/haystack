@@ -51,6 +51,7 @@ struct TransactionForm: View {
     @State private var picker: PickerField?
     @State private var accounts: [Account] = []
     @State private var amountInCents: Int = 0
+    @State private var split: [SplitPart] = []
 
     @Environment(\.accountRepository) private var accountRepository
 
@@ -68,7 +69,7 @@ struct TransactionForm: View {
                 Section {
                     // TODO: category
                     if !kind.isTransfer {
-                        SplitButton(kind: kind, amountInCents: amountInCents)
+                        SplitButton(kind: kind, amountInCents: amountInCents, split: $split)
                     }
                     AccountRow(kind: kind, account: selectedAccount(), picker: $picker)
                     if kind.isTransfer {
@@ -104,12 +105,24 @@ struct TransactionForm: View {
             accounts = await accounts()
         }
         .onChange(of: kind) { _, newValue in
+            // drop the transfer conterpart
             switch newValue {
             case .expense, .income:
                 counterpartAccountID = nil
             case .transfer:
                 if counterpartAccountID == selectedAccountID {
                     counterpartAccountID = nil
+                }
+            }
+
+            // update the split for convenience
+            if newValue != .transfer {
+                for index in split.indices {
+                    guard split[index].amountInCents == 0,
+                          split[index].kind != newValue else {
+                        continue
+                    }
+                    split[index].kind = newValue
                 }
             }
         }
@@ -148,6 +161,10 @@ struct TransactionForm: View {
 
     // MARK: Helpers
 
+    private var isSplit: Bool {
+        split.contains { $0.amountInCents != 0 }
+    }
+
     private func account(with id: UUID) -> Account? {
         accounts.first { $0.id == id }
     }
@@ -182,14 +199,14 @@ struct TransactionForm: View {
 private struct SplitButton: View {
     var kind: TransactionKind
     var amountInCents: Int
+    @Binding var split: [SplitPart]
 
-    @State private var parts: [SplitPart] = []
     @State private var isEditing = false
 
     var body: some View {
         Button {
-            if parts.isEmpty {
-                parts.append(SplitPart(kind: kind))
+            if split.isEmpty {
+                split.append(SplitPart(kind: kind))
             }
             isEditing = true
         } label: {
@@ -200,7 +217,7 @@ private struct SplitButton: View {
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .trailing)
         .navigationDestination(isPresented: $isEditing) {
-            SplitEditor(kind: kind, amountInCents: amountInCents, parts: $parts)
+            SplitEditor(kind: kind, amountInCents: amountInCents, parts: $split)
         }
     }
 }
