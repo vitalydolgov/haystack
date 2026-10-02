@@ -45,48 +45,6 @@ struct TransactionForm: View {
 
     @Environment(\.accountRepository) private var accountRepository
 
-    // MARK: Views
-
-    private var accountRow: some View {
-        Button {
-            picker = .account
-        } label: {
-            HStack {
-                let title = switch kind {
-                case .expense, .income:
-                    "Account"
-                case .transfer:
-                    "Transfer From"
-                }
-                Text(title)
-                Spacer()
-                Text(name(of: selectedAccount()))
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var transferRow: some View {
-        Button {
-            picker = .transfer
-        } label: {
-            HStack {
-                Text("Transfer To")
-                Spacer()
-                Text(name(of: counterpartAccount()))
-                .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             KindPicker(kind: $kind)
@@ -99,9 +57,13 @@ struct TransactionForm: View {
             Form {
                 // TODO: payee
                 Section {
-                    accountRow
+                    // TODO: category
+                    if !kind.isTransfer {
+                        SplitButton(kind: kind, amountInCents: amountInCents)
+                    }
+                    AccountRow(kind: kind, account: selectedAccount(), picker: $picker)
                     if kind.isTransfer {
-                        transferRow
+                        TransferRow(account: counterpartAccount(), picker: $picker)
                     }
                     DatePicker(
                         "Date",
@@ -206,6 +168,88 @@ struct TransactionForm: View {
     }
 
     private static let maximumCents = 99_999_999
+}
+
+private struct SplitButton: View {
+    var kind: TransactionKind
+    var amountInCents: Int
+
+    @State private var parts: [SplitPart] = []
+    @State private var isEditing = false
+
+    var body: some View {
+        Button {
+            if parts.isEmpty {
+                parts.append(SplitPart(kind: kind))
+            }
+            isEditing = true
+        } label: {
+            Text("Split")
+                .font(.footnote)
+                .textCase(.uppercase)
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .navigationDestination(isPresented: $isEditing) {
+            SplitEditor(kind: kind, amountInCents: amountInCents, parts: $parts)
+        }
+    }
+}
+
+private struct TransferRow: View {
+    var account: Account?
+    @Binding var picker: PickerField?
+
+    var body: some View {
+        Button {
+            picker = .transfer
+        } label: {
+            HStack {
+                Text("Transfer To")
+                Spacer()
+                Text(name(of: account))
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct AccountRow: View {
+    var kind: TransactionKind
+    var account: Account?
+    @Binding var picker: PickerField?
+
+    var body: some View {
+        Button {
+            picker = .account
+        } label: {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(name(of: account))
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Helpers
+
+    private var title: String {
+        switch kind {
+        case .expense, .income:
+            "Account"
+        case .transfer:
+            "Transfer From"
+        }
+    }
 }
 
 private struct KindPicker: View {

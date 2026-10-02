@@ -17,6 +17,12 @@ struct AmountFormatter {
         return formatter.string(from: decimal(from: amountInCents) as NSDecimalNumber) ?? ""
     }
 
+    static func signedText(from amountInCents: Int, isNegative: Bool) -> String {
+        let formatted = text(from: amountInCents)
+        guard amountInCents != 0 else { return formatted }
+        return (isNegative ? "−" : "+") + formatted
+    }
+
     static func text(from amount: Decimal) -> String {
         text(from: amountInCents(from: amount))
     }
