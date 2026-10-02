@@ -14,6 +14,7 @@ struct EditTransactionSheet: View {
     @State private var notes = ""
     @State private var selectedAccountID = UUID()
     @State private var counterpartAccountID: UUID?
+    @State private var splitParts: [SplitDraftPart] = []
 
     @State private var initialSelectedAccountID = UUID()
     @State private var initialCounterpartAccountID: UUID?
@@ -36,6 +37,7 @@ struct EditTransactionSheet: View {
                 notes: $notes,
                 selectedAccountID: $selectedAccountID,
                 counterpartAccountID: $counterpartAccountID,
+                splitParts: $splitParts,
             )
             .navigationTitle("Edit Transaction")
             .navigationBarTitleDisplayMode(.inline)
@@ -125,6 +127,7 @@ struct EditTransactionSheet: View {
     }
 
     private var canSave: Bool {
+        // TODO: handle split
         if transactionKind.isPlain {
             canSavePlain
         } else {
@@ -168,6 +171,7 @@ struct EditTransactionSheet: View {
 
     private func save() async {
         do {
+            // TODO: handle split
             if transactionKind.isPlain {
                 try await savePlain()
             } else {

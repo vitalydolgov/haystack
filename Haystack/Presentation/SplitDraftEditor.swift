@@ -1,19 +1,52 @@
 import SwiftUI
 
-struct SplitPart: Identifiable {
+struct SplitDraft {
+    let total: Transaction
+    let parts: [Transaction]
+
+    init(
+        accountID: UUID,
+        date: Date,
+        amount: Decimal,
+        notes: String,
+        parts: [SplitDraftPart]
+    ) throws {
+        let day = date.asYearMonthDay()
+        total = try Transaction(
+            accountID: accountID,
+            date: day,
+            amount: amount,
+            notes: notes
+        )
+        var transactions: [Transaction] = []
+        for part in parts where part.amountInCents != 0 {
+            let transaction = try Transaction(
+                id: part.id,
+                accountID: accountID,
+                date: day,
+                amount: part.kind.signed(magnitude: Decimal(part.amountInCents) / 100),
+                notes: ""
+            )
+            transactions.append(transaction)
+        }
+        self.parts = transactions
+    }
+}
+
+struct SplitDraftPart: Identifiable {
     let id = UUID()
     var kind: TransactionKind
     var amountInCents = 0
 }
 
-struct SplitEditor: View {
+struct SplitDraftEditor: View {
     var kind: TransactionKind
     var amountInCents: Int
-    @Binding var parts: [SplitPart]
+    @Binding var parts: [SplitDraftPart]
 
     @State private var selectedPartID: UUID?
 
-    init(kind: TransactionKind, amountInCents: Int, parts: Binding<[SplitPart]>) {
+    init(kind: TransactionKind, amountInCents: Int, parts: Binding<[SplitDraftPart]>) {
         self.kind = kind
         self.amountInCents = amountInCents
         _parts = parts
@@ -47,7 +80,7 @@ struct SplitEditor: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Add", systemImage: "plus") {
-                    let part = SplitPart(kind: kind)
+                    let part = SplitDraftPart(kind: kind)
                     parts.append(part)
                     selectedPartID = part.id
                 }
@@ -100,7 +133,7 @@ private struct ToggleFlowButton: View {
 }
 
 private struct PartRow: View {
-    var part: SplitPart
+    var part: SplitDraftPart
     @Binding var selectedPartID: UUID?
 
     var body: some View {
@@ -130,7 +163,7 @@ private struct PartRow: View {
 private struct SplitHeader: View {
     var kind: TransactionKind
     var amountInCents: Int
-    var parts: [SplitPart]
+    var parts: [SplitDraftPart]
 
     var body: some View {
         VStack(spacing: 2) {

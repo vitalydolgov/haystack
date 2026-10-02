@@ -12,6 +12,7 @@ struct AddTransactionSheet: View {
     @State private var notes = ""
     @State private var selectedAccountID: UUID
     @State private var counterpartAccountID: UUID?
+    @State private var splitParts: [SplitDraftPart] = []
 
     @State private var saveID: UUID?
 
@@ -36,6 +37,7 @@ struct AddTransactionSheet: View {
                 notes: $notes,
                 selectedAccountID: $selectedAccountID,
                 counterpartAccountID: $counterpartAccountID,
+                splitParts: $splitParts,
             )
             .navigationTitle("Add Transaction")
             .navigationBarTitleDisplayMode(.inline)
@@ -66,6 +68,19 @@ struct AddTransactionSheet: View {
     }
 
     private var canSave: Bool {
+        if isSplit {
+            guard let split = try? SplitDraft(
+                accountID: selectedAccountID,
+                date: date,
+                amount: amount,
+                notes: notes,
+                parts: splitParts
+            ) else {
+                return false
+            }
+            return AddSplit.canExecute(split.total, parts: split.parts)
+        }
+
         if case .transfer = kind {
             guard let counterpartAccountID else {
                 return false
@@ -75,14 +90,28 @@ struct AddTransactionSheet: View {
                 toAccountID: counterpartAccountID,
                 magnitude: abs(amount)
             )
-        } else {
-            return AddTransaction.canExecute(amount: amount)
         }
+
+        return AddTransaction.canExecute(amount: amount)
+    }
+
+    private var isSplit: Bool {
+        splitParts.contains { $0.amountInCents != 0 }
     }
 
     private func save() async {
         do {
-            if case .transfer = kind, let counterpartAccountID {
+            if isSplit {
+                let split = try? SplitDraft(
+                    accountID: selectedAccountID,
+                    date: date,
+                    amount: amount,
+                    notes: notes,
+                    parts: splitParts
+                )
+                guard let split, AddSplit.canExecute(split.total, parts: split.parts) else { return }
+                _ = try await AddSplit(unitOfWork: unitOfWork).execute(split.total, parts: split.parts)
+            } else if case .transfer = kind, let counterpartAccountID {
                 guard AddTransfer.canExecute(
                     fromAccountID: selectedAccountID,
                     toAccountID: counterpartAccountID,
