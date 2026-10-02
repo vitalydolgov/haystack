@@ -33,7 +33,7 @@ struct SplitDraft {
     }
 }
 
-struct SplitDraftPart: Identifiable {
+struct SplitDraftPart: Identifiable, Equatable {
     let id = UUID()
     var kind: TransactionKind
     var amountInCents = 0
@@ -170,6 +170,7 @@ private struct SplitHeader: View {
             HStack {
                 // TODO: payee
                 Spacer()
+                // TODO: hide + sign
                 Text(AmountFormatter.signedText(from: amountInCents, isNegative: kind == .expense))
             }
             .font(.headline.monospacedDigit())

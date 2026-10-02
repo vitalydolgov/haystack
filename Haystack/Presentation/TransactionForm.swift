@@ -11,18 +11,34 @@ enum TransactionKind: Hashable {
     case expense
     case income
     case transfer
+    indirect case split(TransactionKind)
 
     var isTransfer: Bool {
         self == .transfer
     }
 
     var isPlain: Bool {
-        !isTransfer
+        switch self {
+        case .expense, .income:
+            true
+        case .transfer, .split:
+            false
+        }
+    }
+
+    var isSplit: Bool {
+        if case .split = self {
+            true
+        } else {
+            false
+        }
     }
 
     init(of transaction: Transaction) {
         if transaction.type.transferID != nil {
             self = .transfer
+        } else if case .split = transaction.type {
+            self = .split(transaction.amount < 0 ? .expense : .income)
         } else if transaction.amount < 0 {
             self = .expense
         } else {
@@ -36,6 +52,8 @@ enum TransactionKind: Hashable {
             magnitude
         case .expense, .transfer:
             -magnitude
+        case .split(let direction):
+            direction.signed(magnitude: magnitude)
         }
     }
 }
@@ -69,7 +87,8 @@ struct TransactionForm: View {
                 Section {
                     // TODO: category
                     if !kind.isTransfer {
-                        SplitButton(kind: kind, amountInCents: amountInCents, parts: $splitParts)
+                        let direction = if case .split(let direction) = kind { direction } else { kind }
+                        SplitButton(kind: direction, amountInCents: amountInCents, parts: $splitParts)
                     }
                     AccountRow(kind: kind, account: selectedAccount(), picker: $picker)
                     if kind.isTransfer {
@@ -105,9 +124,9 @@ struct TransactionForm: View {
             accounts = await accounts()
         }
         .onChange(of: kind) { _, newValue in
-            // drop the transfer conterpart
+            // drop the transfer counterpart
             switch newValue {
-            case .expense, .income:
+            case .expense, .income, .split:
                 counterpartAccountID = nil
             case .transfer:
                 if counterpartAccountID == selectedAccountID {
@@ -116,14 +135,26 @@ struct TransactionForm: View {
             }
 
             // update the split for convenience
-            if newValue != .transfer {
-                for index in splitParts.indices {
-                    guard splitParts[index].amountInCents == 0,
-                          splitParts[index].kind != newValue else {
-                        continue
-                    }
-                    splitParts[index].kind = newValue
+            let direction: TransactionKind
+            switch newValue {
+            case .expense, .income: direction = newValue
+            case .split(let value): direction = value
+            case .transfer: return
+            }
+            for index in splitParts.indices {
+                guard splitParts[index].amountInCents == 0,
+                      splitParts[index].kind != direction else {
+                    continue
                 }
+                splitParts[index].kind = direction
+            }
+        }
+        .onChange(of: splitParts) { _, parts in
+            let hasSplit = parts.contains { $0.amountInCents != 0 }
+            if hasSplit, !kind.isSplit {
+                kind = .split(kind)
+            } else if !hasSplit, case .split(let direction) = kind {
+                kind = direction
             }
         }
         .onChange(of: selectedAccountID) { oldValue, newValue in
@@ -266,7 +297,7 @@ private struct AccountRow: View {
 
     private var title: String {
         switch kind {
-        case .expense, .income:
+        case .expense, .income, .split:
             "Account"
         case .transfer:
             "Transfer From"
@@ -279,10 +310,19 @@ private struct KindPicker: View {
 
     // MARK: Views
 
-    private func chip(_ value: TransactionKind, title: String) -> some View {
-        let isSelected = kind == value
+    private func chip(_ value: TransactionKind, title: String, isEnabled: Bool = true) -> some View {
+        let isSelected = switch kind {
+        case .split(let direction):
+            direction == value
+        case .expense, .income, .transfer:
+            kind == value
+        }
         return Button {
-            kind = value
+            if case .split = kind {
+                kind = .split(value)
+            } else {
+                kind = value
+            }
         } label: {
             Text(title)
                 .font(.subheadline)
@@ -296,6 +336,7 @@ private struct KindPicker: View {
                 }
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -303,7 +344,7 @@ private struct KindPicker: View {
         HStack(spacing: 8) {
             chip(.expense, title: "Expense")
             chip(.income, title: "Income")
-            chip(.transfer, title: "Transfer")
+            chip(.transfer, title: "Transfer", isEnabled: !kind.isSplit)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 16)
@@ -340,31 +381,26 @@ private struct AmountBlock: View {
     // MARK: Helpers
 
     private var display: String {
-        let formatted = AmountFormatter.currency(amountInCents: amountInCents)
-        guard let sign else { return formatted }
-        return sign + formatted
-    }
-
-    private var sign: String? {
-        guard amountInCents > 0 else { return nil }
         switch kind {
-        case .expense:
-            return "−"
-        case .income:
-            return "+"
-        case .transfer:
-            return nil
+        case .expense, .split(.expense):
+            AmountFormatter.signedText(from: amountInCents, isNegative: true)
+        case .income, .split(.income):
+            AmountFormatter.signedText(from: amountInCents, isNegative: false)
+        case .transfer, .split:
+            AmountFormatter.currency(amountInCents: amountInCents)
         }
     }
 
     private var amountContext: String {
         switch kind {
-        case .expense:
+        case .expense, .split(.expense):
             "From \(name(of: selectedAccount))"
-        case .income:
+        case .income, .split(.income):
             "Into \(name(of: selectedAccount))"
         case .transfer:
             "\(name(of: selectedAccount)) → \(name(of: counterpartAccount))"
+        case .split:
+            "From \(name(of: selectedAccount))"
         }
     }
 }

@@ -68,7 +68,7 @@ struct AddTransactionSheet: View {
     }
 
     private var canSave: Bool {
-        if isSplit {
+        if case .split = kind {
             guard let split = try? SplitDraft(
                 accountID: selectedAccountID,
                 date: date,
@@ -95,13 +95,9 @@ struct AddTransactionSheet: View {
         return AddTransaction.canExecute(amount: amount)
     }
 
-    private var isSplit: Bool {
-        splitParts.contains { $0.amountInCents != 0 }
-    }
-
     private func save() async {
         do {
-            if isSplit {
+            if case .split = kind {
                 let split = try? SplitDraft(
                     accountID: selectedAccountID,
                     date: date,

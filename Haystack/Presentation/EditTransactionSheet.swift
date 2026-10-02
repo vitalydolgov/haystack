@@ -127,11 +127,14 @@ struct EditTransactionSheet: View {
     }
 
     private var canSave: Bool {
-        // TODO: handle split
-        if transactionKind.isPlain {
+        switch transactionKind {
+        case .expense, .income:
             canSavePlain
-        } else {
+        case .transfer:
             canSaveTransfer
+        case .split:
+            // TODO: handle split
+            false
         }
     }
 
@@ -172,10 +175,14 @@ struct EditTransactionSheet: View {
     private func save() async {
         do {
             // TODO: handle split
-            if transactionKind.isPlain {
+            switch transactionKind {
+            case .expense, .income:
                 try await savePlain()
-            } else {
+            case .transfer:
                 try await saveTransfer()
+            case .split:
+                // TODO: handle split
+                throw PresentationError.cannotExecute
             }
             dismiss()
         } catch {
