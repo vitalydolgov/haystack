@@ -29,6 +29,15 @@ enum TransactionKind: Hashable {
             self = .income
         }
     }
+
+    func signed(magnitude: Decimal) -> Decimal {
+        switch self {
+        case .income:
+            magnitude
+        case .expense, .transfer:
+            -magnitude
+        }
+    }
 }
 
 struct TransactionForm: View {

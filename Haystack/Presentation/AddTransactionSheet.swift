@@ -20,20 +20,11 @@ struct AddTransactionSheet: View {
         _selectedAccountID = State(initialValue: accountID)
     }
 
-    private var parsedAmount: Decimal? {
+    private var amount: Decimal {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return Decimal(string: trimmed, locale: .current)
-    }
-
-    private var signedAmount: Decimal {
-        let amount = abs(parsedAmount ?? 0)
-        switch kind {
-        case .income:
-            return amount
-        case .expense, .transfer:
-            return -amount
-        }
+        guard !trimmed.isEmpty else { return 0 }
+        let parsed = Decimal(string: trimmed, locale: .current) ?? 0
+        return kind.signed(magnitude: abs(parsed))
     }
 
     var body: some View {
@@ -82,10 +73,10 @@ struct AddTransactionSheet: View {
             return AddTransfer.canExecute(
                 fromAccountID: selectedAccountID,
                 toAccountID: counterpartAccountID,
-                magnitude: abs(signedAmount)
+                magnitude: abs(amount)
             )
         } else {
-            return AddTransaction.canExecute(amount: signedAmount)
+            return AddTransaction.canExecute(amount: amount)
         }
     }
 
@@ -95,21 +86,21 @@ struct AddTransactionSheet: View {
                 guard AddTransfer.canExecute(
                     fromAccountID: selectedAccountID,
                     toAccountID: counterpartAccountID,
-                    magnitude: abs(signedAmount)
+                    magnitude: abs(amount)
                 ) else { return }
                 _ = try await AddTransfer(unitOfWork: unitOfWork).execute(
                     fromAccountID: selectedAccountID,
                     toAccountID: counterpartAccountID,
                     date: date,
-                    magnitude: abs(signedAmount),
+                    magnitude: abs(amount),
                     notes: notes
                 )
             } else {
-                guard AddTransaction.canExecute(amount: signedAmount) else { return }
+                guard AddTransaction.canExecute(amount: amount) else { return }
                 _ = try await AddTransaction(unitOfWork: unitOfWork).execute(
                     accountID: selectedAccountID,
                     date: date,
-                    amount: signedAmount,
+                    amount: amount,
                     notes: notes
                 )
             }

@@ -20,20 +20,11 @@ struct EditTransactionSheet: View {
 
     @State private var saveID: UUID?
 
-    private var parsedAmount: Decimal? {
+    private var amount: Decimal {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return Decimal(string: trimmed, locale: .current)
-    }
-
-    private var signedAmount: Decimal {
-        let amount = abs(parsedAmount ?? 0)
-        switch transactionKind {
-        case .income:
-            return amount
-        case .expense, .transfer:
-            return -amount
-        }
+        guard !trimmed.isEmpty else { return 0 }
+        let parsed = Decimal(string: trimmed, locale: .current) ?? 0
+        return transactionKind.signed(magnitude: abs(parsed))
     }
 
     var body: some View {
@@ -143,11 +134,11 @@ struct EditTransactionSheet: View {
 
     private var canSavePlain: Bool {
         if isConversion {
-            ConvertTransferToTransaction.canExecute(amount: signedAmount)
+            ConvertTransferToTransaction.canExecute(amount: amount)
         } else if isMove {
             MoveTransaction.canExecute(fromAccountID: initialSelectedAccountID, toAccountID: selectedAccountID)
         } else {
-            EditTransaction.canExecute(amount: signedAmount)
+            EditTransaction.canExecute(amount: amount)
         }
     }
 
@@ -159,7 +150,7 @@ struct EditTransactionSheet: View {
             return ConvertTransactionToTransfer.canExecute(
                 accountID: selectedAccountID,
                 counterpartAccountID: counterpartAccountID,
-                amount: signedAmount
+                amount: amount
             )
         } else if isMove {
             guard let counterpartAccountID else {
@@ -168,10 +159,10 @@ struct EditTransactionSheet: View {
             return ReplaceTransfer.canExecute(
                 fromAccountID: selectedAccountID,
                 toAccountID: counterpartAccountID,
-                amount: abs(signedAmount)
+                amount: abs(amount)
             )
         } else {
-            return EditTransfer.canExecute(amount: signedAmount)
+            return EditTransfer.canExecute(amount: amount)
         }
     }
 
@@ -199,7 +190,7 @@ struct EditTransactionSheet: View {
                 keeping: transaction.accountID,
                 movingTo: selectedAccountID,
                 date: date,
-                amount: signedAmount,
+                amount: amount,
                 notes: notes
             )
         } else if isMove {
@@ -212,7 +203,7 @@ struct EditTransactionSheet: View {
                 id: transactionID,
                 accountID: selectedAccountID,
                 date: date,
-                amount: signedAmount,
+                amount: amount,
                 notes: notes
             )
         }
@@ -228,7 +219,7 @@ struct EditTransactionSheet: View {
                 accountID: selectedAccountID,
                 counterpartAccountID: counterpartAccountID,
                 date: date,
-                amount: signedAmount,
+                amount: amount,
                 notes: notes
             )
         } else if isMove {
@@ -240,7 +231,7 @@ struct EditTransactionSheet: View {
                 fromAccountID: selectedAccountID,
                 toAccountID: counterpartAccountID,
                 date: date,
-                amount: abs(signedAmount),
+                amount: abs(amount),
                 notes: notes
             )
         } else {
@@ -251,7 +242,7 @@ struct EditTransactionSheet: View {
                 id: transferID,
                 accountID: selectedAccountID,
                 date: date,
-                amount: signedAmount,
+                amount: amount,
                 notes: notes
             )
         }
