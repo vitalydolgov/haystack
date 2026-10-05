@@ -46,7 +46,13 @@ struct AddTransfer {
         magnitude: Decimal,
         notes: String = ""
     ) async throws -> (Transaction, Transaction) {
-        // TODO: guard with canExecute
+        guard Self.canExecute(
+            fromAccountID: fromAccountID,
+            toAccountID: toAccountID,
+            magnitude: magnitude
+        ) else {
+            throw ApplicationError.cannotExecute
+        }
         // TODO: check invariants before saving
         guard var fromAccount = try await store.accounts.query(id: fromAccountID),
               var toAccount = try await store.accounts.query(id: toAccountID) else {

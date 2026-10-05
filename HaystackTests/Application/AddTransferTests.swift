@@ -39,16 +39,16 @@ struct AddTransferTests {
         #expect(try await accounts.query(id: toAccount.id)?.balance == 12.5)
     }
 
-    // MARK: Errors
+    // MARK: Can execute
 
-    @Test func failsWhenSameAccount() async throws {
+    @Test func failsWhenAccountsMatch() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()
         let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
         let account = try Account.make()
         await accounts.save(account)
 
-        await #expect(throws: TransferError.sameAccount) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddTransfer(unitOfWork: unitOfWork).execute(
                 fromAccountID: account.id,
                 toAccountID: account.id,
@@ -56,7 +56,52 @@ struct AddTransferTests {
             )
         }
         #expect(await transactions.all().isEmpty)
+        #expect(try await accounts.query(id: account.id)?.balance == 0)
     }
+
+    @Test func failsWhenMagnitudeIsZero() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let fromAccount = try Account.make()
+        let toAccount = try Account.make()
+        await accounts.save(fromAccount)
+        await accounts.save(toAccount)
+
+        await #expect(throws: ApplicationError.cannotExecute) {
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
+                fromAccountID: fromAccount.id,
+                toAccountID: toAccount.id,
+                magnitude: 0
+            )
+        }
+        #expect(await transactions.all().isEmpty)
+        #expect(try await accounts.query(id: fromAccount.id)?.balance == 0)
+        #expect(try await accounts.query(id: toAccount.id)?.balance == 0)
+    }
+
+    @Test func failsWhenMagnitudeIsNegative() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let fromAccount = try Account.make()
+        let toAccount = try Account.make()
+        await accounts.save(fromAccount)
+        await accounts.save(toAccount)
+
+        await #expect(throws: ApplicationError.cannotExecute) {
+            try await AddTransfer(unitOfWork: unitOfWork).execute(
+                fromAccountID: fromAccount.id,
+                toAccountID: toAccount.id,
+                magnitude: -1
+            )
+        }
+        #expect(await transactions.all().isEmpty)
+        #expect(try await accounts.query(id: fromAccount.id)?.balance == 0)
+        #expect(try await accounts.query(id: toAccount.id)?.balance == 0)
+    }
+
+    // MARK: Errors
 
     @Test func failsWhenFromAccountMissing() async throws {
         let accounts = InMemoryAccountRepository()
@@ -128,24 +173,5 @@ struct AddTransferTests {
             )
         }
         #expect(await transactions.all().isEmpty)
-    }
-
-    // MARK: Can execute
-
-    @Test func allowsSaveWhenAccountsDifferAndMagnitudeIsPositive() {
-        #expect(AddTransfer.canExecute(fromAccountID: UUID(), toAccountID: UUID(), magnitude: 1))
-    }
-
-    @Test func doesNotAllowSaveWhenAccountsMatch() {
-        let accountID = UUID()
-        #expect(!AddTransfer.canExecute(fromAccountID: accountID, toAccountID: accountID, magnitude: 1))
-    }
-
-    @Test func doesNotAllowSaveWhenMagnitudeIsZero() {
-        #expect(!AddTransfer.canExecute(fromAccountID: UUID(), toAccountID: UUID(), magnitude: 0))
-    }
-
-    @Test func doesNotAllowSaveWhenMagnitudeIsNegative() {
-        #expect(!AddTransfer.canExecute(fromAccountID: UUID(), toAccountID: UUID(), magnitude: -1))
     }
 }
