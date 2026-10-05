@@ -300,6 +300,101 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(try await transactions.queryCounterpart(transactionID: UUID()) == nil)
     }
 
+    // MARK: Query Split
+
+    @Test func findsSplitBySplitID() async throws {
+        let (container, writer) = try await makeStore()
+        let splitID = UUID()
+        let transferID = UUID()
+        let accountID = UUID()
+        let total = try Transaction.make(
+            id: splitID,
+            accountID: accountID,
+            amount: 30,
+            type: .split(splitID)
+        )
+        let grocery = try Transaction.make(
+            accountID: accountID,
+            amount: 20,
+            type: .splitPart(splitID, .standard)
+        )
+        let card = try Transaction.make(
+            accountID: accountID,
+            amount: 10,
+            type: .splitPart(splitID, .transfer(transferID))
+        )
+        let other = try Transaction.make(amount: 5)
+        try await writer.save(total)
+        try await writer.save(grocery)
+        try await writer.save(card)
+        try await writer.save(other)
+
+        let (foundTotal, parts) = try #require(try await reader(container).querySplit(id: splitID))
+        #expect(foundTotal.id == total.id)
+        #expect(foundTotal.type == .split(splitID))
+        #expect(Set(parts.map(\.id)) == [grocery.id, card.id])
+        #expect(parts.first { $0.id == grocery.id }?.type == .splitPart(splitID, .standard))
+        #expect(parts.first { $0.id == card.id }?.type == .splitPart(splitID, .transfer(transferID)))
+    }
+
+    @Test func returnsTotalWithoutParts() async throws {
+        let (container, writer) = try await makeStore()
+        let splitID = UUID()
+        let total = try Transaction.make(id: splitID, amount: 30, type: .split(splitID))
+        try await writer.save(total)
+
+        let (foundTotal, parts) = try #require(try await reader(container).querySplit(id: splitID))
+        #expect(foundTotal.id == total.id)
+        #expect(parts.isEmpty)
+    }
+
+    @Test func hidesDeletedSplitPart() async throws {
+        let (container, writer) = try await makeStore()
+        let splitID = UUID()
+        let accountID = UUID()
+        let total = try Transaction.make(
+            id: splitID,
+            accountID: accountID,
+            amount: 30,
+            type: .split(splitID)
+        )
+        let grocery = try Transaction.make(
+            accountID: accountID,
+            amount: 20,
+            type: .splitPart(splitID, .standard)
+        )
+        let tax = try Transaction.make(
+            accountID: accountID,
+            amount: 10,
+            type: .splitPart(splitID, .standard)
+        )
+        try await writer.save(total)
+        try await writer.save(grocery)
+        try await writer.save(tax)
+        try await writer.delete(tax.delete(at: Date()))
+
+        let (foundTotal, parts) = try #require(try await reader(container).querySplit(id: splitID))
+        #expect(foundTotal.id == total.id)
+        #expect(parts.map(\.id) == [grocery.id])
+    }
+
+    @Test func returnsNilWhenSplitTotalIsDeleted() async throws {
+        let (container, writer) = try await makeStore()
+        let splitID = UUID()
+        let total = try Transaction.make(id: splitID, amount: 20, type: .split(splitID))
+        let part = try Transaction.make(amount: 20, type: .splitPart(splitID, .standard))
+        try await writer.save(total)
+        try await writer.save(part)
+        try await writer.delete(total.delete(at: Date()))
+
+        #expect(try await reader(container).querySplit(id: splitID) == nil)
+    }
+
+    @Test func returnsNilWhenSplitNotFound() async throws {
+        let (_, transactions) = try await makeStore()
+        #expect(try await transactions.querySplit(id: UUID()) == nil)
+    }
+
     // MARK: Delete
 
     @Test func persistsADeletedTransaction() async throws {

@@ -49,6 +49,18 @@ actor InMemoryTransactionRepository: TransactionRepository {
         return nil
     }
 
+    func querySplit(id: UUID) -> (Transaction, [Transaction])? {
+        let members = transactions.values.filter { $0.type.splitID == id && tombstones[$0.id] == nil }
+        let totals = members.filter {
+            if case .split = $0.type { true } else { false }
+        }
+        guard totals.count == 1, let total = totals.first else { return nil }
+        let parts = members.filter {
+            if case .splitPart = $0.type { true } else { false }
+        }
+        return (total, parts)
+    }
+
     func delete(_ transaction: DeletedTransaction) {
         guard tombstones[transaction.id] == nil else { return }
         transactions[transaction.id] = nil

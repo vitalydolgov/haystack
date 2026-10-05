@@ -35,6 +35,10 @@ struct DurableTransactionRepository: TransactionRepository {
         try await unitOfWork.store.transactions.queryCounterpart(transactionID: transactionID)
     }
 
+    func querySplit(id: UUID) async throws -> (Transaction, [Transaction])? {
+        try await unitOfWork.store.transactions.querySplit(id: id)
+    }
+
     func delete(_ transaction: DeletedTransaction) async throws {
         try await unitOfWork.perform { try await $0.transactions.delete(transaction) }
     }
