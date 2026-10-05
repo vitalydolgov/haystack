@@ -55,6 +55,12 @@ actor InMemoryTransactionRepository: TransactionRepository {
         tombstones[transaction.id] = transaction
     }
 
+    func delete(batch: [DeletedTransaction]) {
+        for transaction in batch {
+            delete(transaction)
+        }
+    }
+
     func deleted(id: UUID) -> DeletedTransaction? {
         tombstones[id]
     }

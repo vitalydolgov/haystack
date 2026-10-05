@@ -38,4 +38,10 @@ struct DurableTransactionRepository: TransactionRepository {
     func delete(_ transaction: DeletedTransaction) async throws {
         try await unitOfWork.perform { try await $0.transactions.delete(transaction) }
     }
+
+    func delete(batch: [DeletedTransaction]) async throws {
+        try await unitOfWork.perform { store in
+            try await store.transactions.delete(batch: batch)
+        }
+    }
 }

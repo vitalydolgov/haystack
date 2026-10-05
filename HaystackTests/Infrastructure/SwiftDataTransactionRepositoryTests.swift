@@ -336,6 +336,60 @@ struct SwiftDataTransactionRepositoryTests {
         #expect(try await storedDeletedAt(id: id, in: container) == nil)
     }
 
+    // MARK: Delete Batch
+
+    @Test func deletesEveryTransaction() async throws {
+        let (container, transactions) = try await makeStore()
+        let rent = try Transaction.make(notes: "Rent")
+        let pay = try Transaction.make(notes: "Pay")
+        try await transactions.save(batch: [rent, pay])
+        let rentDeletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let payDeletedAt = Date(timeIntervalSince1970: 1_700_000_100)
+        try await transactions.delete(batch: [
+            rent.delete(at: rentDeletedAt),
+            pay.delete(at: payDeletedAt),
+        ])
+
+        #expect(try await transactions.query(id: rent.id) == nil)
+        #expect(try await transactions.query(id: pay.id) == nil)
+        #expect(try await storedDeletedAt(id: rent.id, in: container) == rentDeletedAt)
+        #expect(try await storedDeletedAt(id: pay.id, in: container) == payDeletedAt)
+    }
+
+    @Test func keepsOriginalDeletedAt() async throws {
+        let (container, transactions) = try await makeStore()
+        let deleted = try Transaction.make(notes: "Gone")
+        let kept = try Transaction.make(notes: "Kept")
+        try await transactions.save(batch: [deleted, kept])
+        let original = Date(timeIntervalSince1970: 1)
+        try await transactions.delete(deleted.delete(at: original))
+        let later = Date(timeIntervalSince1970: 2)
+        try await transactions.delete(batch: [
+            DeletedTransaction(id: deleted.id, deletedAt: later),
+            kept.delete(at: later),
+        ])
+
+        #expect(try await storedDeletedAt(id: deleted.id, in: container) == original)
+        #expect(try await storedDeletedAt(id: kept.id, in: container) == later)
+        #expect(try await transactions.query(id: kept.id) == nil)
+    }
+
+    @Test func skipsMissingTransaction() async throws {
+        let (container, transactions) = try await makeStore()
+        let kept = try Transaction.make(notes: "Kept")
+        try await transactions.save(kept)
+        let missingID = UUID()
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        try await transactions.delete(batch: [
+            DeletedTransaction(id: missingID, deletedAt: deletedAt),
+            kept.delete(at: deletedAt),
+        ])
+
+        #expect(try await storedDeletedAt(id: missingID, in: container) == nil)
+        #expect(try await transactions.query(id: kept.id) == nil)
+        #expect(try await storedDeletedAt(id: kept.id, in: container) == deletedAt)
+    }
+
     // MARK: - Helpers
 
     private func makeStore() async throws -> (ModelContainer, DurableTransactionRepository) {
