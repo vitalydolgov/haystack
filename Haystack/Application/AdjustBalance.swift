@@ -4,6 +4,7 @@ import TransactionalMacro
 struct AdjustBalance {
     let unitOfWork: UnitOfWork
 
+    // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, to balance: Decimal, on date: Date = .now) async throws -> Account {
         guard var account = try await store.accounts.query(id: id) else {

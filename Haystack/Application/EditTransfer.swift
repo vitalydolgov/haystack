@@ -8,6 +8,7 @@ struct EditTransfer {
         amount != 0
     }
 
+    // TODO: refactor with apply method
     @Transactional
     func execute(
         id: UUID,

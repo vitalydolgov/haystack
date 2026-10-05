@@ -8,6 +8,7 @@ struct ConvertTransferToTransaction {
         amount != 0
     }
 
+    // TODO: refactor with apply method
     @Transactional
     func execute(
         transferID: UUID,

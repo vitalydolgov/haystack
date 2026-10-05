@@ -8,6 +8,7 @@ struct MoveTransaction {
         fromAccountID != toAccountID
     }
 
+    // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, movingTo accountID: UUID) async throws {
         guard let originalTx = try await store.transactions.query(id: id),

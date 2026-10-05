@@ -32,6 +32,7 @@ struct DeleteSplit {
         }
     }
 
+    // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
         guard let (total, parts) = try await store.transactions.querySplit(id: id) else {

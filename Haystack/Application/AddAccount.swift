@@ -8,6 +8,7 @@ struct AddAccount {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    // TODO: refactor with apply method
     @discardableResult
     @Transactional
     func execute(

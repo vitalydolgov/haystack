@@ -4,6 +4,7 @@ import TransactionalMacro
 struct CloseAccount {
     let unitOfWork: UnitOfWork
 
+    // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID) async throws {
         guard var account = try await store.accounts.query(id: id) else {
