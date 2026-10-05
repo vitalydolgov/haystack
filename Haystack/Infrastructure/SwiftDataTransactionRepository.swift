@@ -61,6 +61,22 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         return nil
     }
 
+    func querySplit(id: UUID) throws -> (Transaction, [Transaction])? {
+        let splitID = id
+        let descriptor = FetchDescriptor<TransactionRecord>(
+            predicate: #Predicate { $0.splitID == splitID && $0.deletedAt == nil }
+        )
+        let transactions = try modelContext.fetch(descriptor).map { try $0.toTransaction() }
+        let totals = transactions.filter {
+            if case .split = $0.type { true } else { false }
+        }
+        guard totals.count == 1, let total = totals.first else { return nil }
+        let parts = transactions.filter {
+            if case .splitPart = $0.type { true } else { false }
+        }
+        return (total, parts)
+    }
+
     func delete(_ transaction: DeletedTransaction) throws {
         guard let record = record(id: transaction.id), record.deletedAt == nil else { return }
         record.deletedAt = transaction.deletedAt

@@ -42,4 +42,8 @@ private struct MissingTransactionRepository: TransactionQuerying {
     func queryCounterpart(transactionID _: UUID) async throws -> Transaction? {
         fatalError("missing environment value transactionRepository")
     }
+
+    func querySplit(id _: UUID) async throws -> (Transaction, [Transaction])? {
+        fatalError("missing environment value transactionRepository")
+    }
 }
