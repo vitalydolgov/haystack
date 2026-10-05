@@ -9,33 +9,33 @@ struct AddTransfer {
     }
 
     static func apply(
-        fromAccount: inout Account,
-        toAccount: inout Account,
+        account: inout Account,
+        counterpartAccount: inout Account,
         date: Date = .now,
-        magnitude: Decimal,
+        amount: Decimal,
         notes: String = ""
     ) throws -> (Transaction, Transaction) {
-        guard fromAccount.id != toAccount.id else { throw TransferError.sameAccount }
-        guard !fromAccount.isClosed, !toAccount.isClosed else { throw AccountError.closed }
+        guard account.id != counterpartAccount.id else { throw TransferError.sameAccount }
+        guard !account.isClosed, !counterpartAccount.isClosed else { throw AccountError.closed }
         let transferID = UUID()
         let day = date.asYearMonthDay()
-        let fromLeg = try Transaction(
-            accountID: fromAccount.id,
+        let transaction = try Transaction(
+            accountID: account.id,
             date: day,
-            amount: -magnitude,
+            amount: amount,
             notes: notes,
             type: .transfer(transferID)
         )
-        let toLeg = try Transaction(
-            accountID: toAccount.id,
+        let counterpartTransaction = try Transaction(
+            accountID: counterpartAccount.id,
             date: day,
-            amount: magnitude,
+            amount: -amount,
             notes: notes,
             type: .transfer(transferID)
         )
-        fromAccount += fromLeg
-        toAccount += toLeg
-        return (fromLeg, toLeg)
+        account += transaction
+        counterpartAccount += counterpartTransaction
+        return (transaction, counterpartTransaction)
     }
 
     @Transactional
@@ -51,10 +51,10 @@ struct AddTransfer {
             throw AccountError.notFound
         }
         let (fromLeg, toLeg) = try Self.apply(
-            fromAccount: &fromAccount,
-            toAccount: &toAccount,
+            account: &fromAccount,
+            counterpartAccount: &toAccount,
             date: date,
-            magnitude: magnitude,
+            amount: -magnitude,
             notes: notes
         )
         try await store.accounts.save(fromAccount)

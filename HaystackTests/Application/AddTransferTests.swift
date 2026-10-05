@@ -129,4 +129,23 @@ struct AddTransferTests {
         }
         #expect(await transactions.all().isEmpty)
     }
+
+    // MARK: Can execute
+
+    @Test func allowsSaveWhenAccountsDifferAndMagnitudeIsPositive() {
+        #expect(AddTransfer.canExecute(fromAccountID: UUID(), toAccountID: UUID(), magnitude: 1))
+    }
+
+    @Test func doesNotAllowSaveWhenAccountsMatch() {
+        let accountID = UUID()
+        #expect(!AddTransfer.canExecute(fromAccountID: accountID, toAccountID: accountID, magnitude: 1))
+    }
+
+    @Test func doesNotAllowSaveWhenMagnitudeIsZero() {
+        #expect(!AddTransfer.canExecute(fromAccountID: UUID(), toAccountID: UUID(), magnitude: 0))
+    }
+
+    @Test func doesNotAllowSaveWhenMagnitudeIsNegative() {
+        #expect(!AddTransfer.canExecute(fromAccountID: UUID(), toAccountID: UUID(), magnitude: -1))
+    }
 }
