@@ -18,6 +18,8 @@ struct ConvertTransactionToTransfer {
         amount: Decimal,
         notes: String = ""
     ) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard amount != 0 else { throw TransactionError.invalidAmount }
         guard accountID != counterpartAccountID else {
             throw TransferError.sameAccount

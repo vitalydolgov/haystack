@@ -7,6 +7,8 @@ struct AdjustBalance {
     // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, to balance: Decimal, on date: Date = .now) async throws -> Account {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard var account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }

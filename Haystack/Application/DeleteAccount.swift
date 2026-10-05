@@ -8,6 +8,8 @@ struct DeleteAccount {
     // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard let account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }

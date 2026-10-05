@@ -46,6 +46,8 @@ struct AddTransfer {
         magnitude: Decimal,
         notes: String = ""
     ) async throws -> (Transaction, Transaction) {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard var fromAccount = try await store.accounts.query(id: fromAccountID),
               var toAccount = try await store.accounts.query(id: toAccountID) else {
             throw AccountError.notFound

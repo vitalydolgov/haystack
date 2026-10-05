@@ -18,6 +18,8 @@ struct DeleteTransfer {
 
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: id) else {
             throw TransferError.notFound
         }

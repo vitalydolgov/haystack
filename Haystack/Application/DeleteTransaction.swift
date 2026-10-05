@@ -15,6 +15,8 @@ struct DeleteTransaction {
 
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard let transaction = try await store.transactions.query(id: id),
               case .standard = transaction.type else {
             throw TransactionError.notFound

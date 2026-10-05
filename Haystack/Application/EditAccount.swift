@@ -11,6 +11,8 @@ struct EditAccount {
     // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, name: String, notes: String, workingBalance: Decimal) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard var account = try await store.accounts.query(id: id) else {
             throw AccountError.notFound
         }

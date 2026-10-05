@@ -18,6 +18,8 @@ struct ReplaceTransfer {
         amount: Decimal,
         notes: String = ""
     ) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard amount > 0 else { throw TransferError.invalidAmount }
         try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: id)
         _ = try await AddTransfer(unitOfWork: unitOfWork).execute(

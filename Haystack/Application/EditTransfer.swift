@@ -17,6 +17,8 @@ struct EditTransfer {
         amount: Decimal,
         notes: String = ""
     ) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard amount != 0 else { throw TransferError.invalidAmount }
         guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: id) else {
             throw TransferError.notFound

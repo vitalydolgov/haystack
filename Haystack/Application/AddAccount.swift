@@ -17,6 +17,8 @@ struct AddAccount {
         notes: String = "",
         balance: Decimal = 0
     ) async throws -> Account {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         var account = try Account(name: name, type: type, notes: notes)
         if balance != 0 {
             let transaction = try Transaction(

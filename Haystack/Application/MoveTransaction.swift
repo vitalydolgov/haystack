@@ -11,6 +11,8 @@ struct MoveTransaction {
     // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, movingTo accountID: UUID) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard let originalTx = try await store.transactions.query(id: id),
               case .standard = originalTx.type else {
             throw TransactionError.notFound

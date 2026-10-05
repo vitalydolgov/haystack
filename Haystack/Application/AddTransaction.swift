@@ -41,6 +41,8 @@ struct AddTransaction {
         notes: String = "",
         splitID: UUID? = nil
     ) async throws -> Transaction {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard var account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }

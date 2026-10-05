@@ -18,6 +18,8 @@ struct ConvertTransferToTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws {
+        // TODO: guard with canExecute
+        // TODO: check invariants before saving
         guard amount != 0 else { throw TransactionError.invalidAmount }
 
         // figure out what to keep
