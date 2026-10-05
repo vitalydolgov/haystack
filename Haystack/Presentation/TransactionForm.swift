@@ -233,7 +233,7 @@ private struct SplitButton: View {
     var body: some View {
         Button {
             if parts.isEmpty {
-                parts.append(SplitDraftPart(kind: kind))
+                parts.append(SplitDraftPart(id: UUID(), kind: kind))
             }
             isEditing = true
         } label: {

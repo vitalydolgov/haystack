@@ -34,9 +34,17 @@ struct SplitDraft {
 }
 
 struct SplitDraftPart: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     var kind: TransactionKind
     var amountInCents = 0
+
+    static func from(_ transaction: Transaction) -> SplitDraftPart {
+        SplitDraftPart(
+            id: transaction.id,
+            kind: TransactionKind(of: transaction),
+            amountInCents: AmountFormatter.amountInCents(from: transaction.amount)
+        )
+    }
 }
 
 struct SplitDraftEditor: View {
@@ -80,7 +88,7 @@ struct SplitDraftEditor: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Add", systemImage: "plus") {
-                    let part = SplitDraftPart(kind: kind)
+                    let part = SplitDraftPart(id: UUID(), kind: kind)
                     parts.append(part)
                     selectedPartID = part.id
                 }

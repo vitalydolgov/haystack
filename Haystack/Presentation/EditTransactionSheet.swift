@@ -71,7 +71,17 @@ struct EditTransactionSheet: View {
     private func prefill() async {
         guard let transaction = await transaction(id: transactionID) else { return }
         transactionKind = TransactionKind(of: transaction)
-        if transferID != nil {
+        if case .split(let splitID) = transaction.type {
+            guard let (_, parts) = await split(id: splitID) else { return }
+            amountText = AmountFormatter.text(from: transaction.amount)
+            date = Transaction.date(from: transaction.date)
+            notes = transaction.notes
+            selectedAccountID = transaction.accountID
+            counterpartAccountID = nil
+            initialSelectedAccountID = selectedAccountID
+            initialCounterpartAccountID = nil
+            splitParts = parts.map(SplitDraftPart.from)
+        } else if case .transfer = transaction.type {
             guard let counterpart = await counterpart(transactionID: transactionID) else { return }
             amountText = AmountFormatter.text(from: transaction.amount)
             date = Transaction.date(from: transaction.date)
@@ -108,6 +118,15 @@ struct EditTransactionSheet: View {
     private func counterpart(transactionID: UUID) async -> Transaction? {
         do {
             return try await transactionRepository.queryCounterpart(transactionID: transactionID)
+        } catch {
+            print("error: \(error)")
+            return nil
+        }
+    }
+
+    private func split(id: UUID) async -> (Transaction, [Transaction])? {
+        do {
+            return try await transactionRepository.querySplit(id: id)
         } catch {
             print("error: \(error)")
             return nil
