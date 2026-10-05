@@ -7,7 +7,6 @@ struct TransactionsView: View {
     @State private var accountName = ""
     @State private var deletingTransaction: Transaction?
     @State private var deleteID: UUID?
-    @State private var deleteTransferID: UUID?
 
     @Environment(Navigator.self) private var navigator
     @Environment(\.unitOfWork) private var unitOfWork
@@ -29,6 +28,15 @@ struct TransactionsView: View {
                 HStack {
                     // TODO: payee
                     Text(dateText(transaction))
+                    if case .split = transaction.type {
+                        Text("Split")
+                            .font(.caption.weight(.semibold))
+                            .textCase(.uppercase)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .foregroundStyle(.background)
+                            .background(DeosaiTheme.straw, in: Capsule())
+                    }
                     Spacer()
                     Text(transaction.amount, format: .currency(code: currencyCode))
                         .monospacedDigit()
@@ -61,7 +69,6 @@ struct TransactionsView: View {
         }
         .alert("Delete Transaction", isPresented: isConfirmingDelete, presenting: deletingTransaction) { transaction in
             Button("Delete", role: .destructive) {
-                deleteTransferID = transaction.type.transferID
                 deleteID = transaction.id
             }
         } message: { _ in
@@ -118,7 +125,9 @@ struct TransactionsView: View {
 
     private func transactions() async -> [Transaction] {
         do {
-            return try await transactionRepository.query(.account(accountID))
+            return try await transactionRepository.query(.account(accountID)).filter { transaction in
+                if case .splitPart = transaction.type { false } else { true }
+            }
         } catch {
             print("error: \(error)")
             return []
@@ -127,10 +136,16 @@ struct TransactionsView: View {
 
     private func delete(id: UUID) async {
         do {
-            if let deleteTransferID {
-                try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: deleteTransferID)
-            } else {
+            guard let transaction = transactions.first(where: { $0.id == id }) else { return }
+            switch transaction.type {
+            case .standard:
                 try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: id)
+            case .transfer(let transferID):
+                try await DeleteTransfer(unitOfWork: unitOfWork).execute(id: transferID)
+            case .split(let splitID):
+                try await DeleteSplit(unitOfWork: unitOfWork).execute(id: splitID)
+            case .splitPart:
+                return
             }
         } catch {
             deleteID = nil
