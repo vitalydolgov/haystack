@@ -16,4 +16,5 @@ protocol TransactionRepository: TransactionQuerying, Sendable {
     func save(_ transaction: Transaction) async throws
     func save(batch: [Transaction]) async throws
     func delete(_ transaction: DeletedTransaction) async throws
+    func delete(batch: [DeletedTransaction]) async throws
 }

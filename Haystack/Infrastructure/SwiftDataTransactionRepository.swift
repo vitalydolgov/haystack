@@ -66,6 +66,12 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
         record.deletedAt = transaction.deletedAt
     }
 
+    func delete(batch: [DeletedTransaction]) throws {
+        for transaction in batch {
+            try delete(transaction)
+        }
+    }
+
     private func descriptor(for query: TransactionQuery) -> FetchDescriptor<TransactionRecord> {
         switch query {
         case .account(let accountID):
