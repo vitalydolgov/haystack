@@ -4,31 +4,12 @@ import TransactionalMacro
 struct AddSplit {
     let unitOfWork: UnitOfWork
 
-    private static func validate(_ transaction: Transaction, parts: [Transaction]) throws {
-        guard transaction.type == .standard else {
-            throw SplitError.malformed
-        }
-        guard parts.count == Set(parts.map(\.id)).count, parts.count >= 2 else {
-            throw SplitError.malformed
-        }
-        for part in parts {
-            switch part.type {
-            case .standard:
-                guard part.accountID == transaction.accountID else { throw SplitError.malformed }
-            case .transfer:
-                guard part.accountID != transaction.accountID else { throw SplitError.malformed }
-            case .split, .splitPart:
-                throw SplitError.malformed
-            }
-        }
-        guard parts.reduce(Decimal(0), { $0 + $1.amount }) == transaction.amount else {
-            throw SplitError.invalidAmount
-        }
-    }
-
-    static func canExecute(_ transaction: Transaction, parts: [Transaction]) -> Bool {
+    static func canExecute(
+        _ transaction: Transaction,
+        parts: [Transaction]
+    ) -> Bool {
         do {
-            try validate(transaction, parts: parts)
+            try Split.validate(draft: transaction, parts: parts)
             return true
         } catch {
             return false
@@ -41,13 +22,16 @@ struct AddSplit {
         _ transaction: Transaction,
         parts: [Transaction]
     ) async throws -> (Transaction, [Transaction]) {
-        try Self.validate(transaction, parts: parts)
+
+        guard Self.canExecute(transaction, parts: parts) else {
+            throw ApplicationError.cannotExecute
+        }
 
         // load the account
-        guard var source = try await store.accounts.query(id: transaction.accountID) else {
+        guard var account = try await store.accounts.query(id: transaction.accountID) else {
             throw AccountError.notFound
         }
-        guard !source.isClosed else { throw AccountError.closed }
+        guard !account.isClosed else { throw AccountError.closed }
 
         // build the total
         let splitID = UUID()
@@ -67,7 +51,7 @@ struct AddSplit {
             switch transaction.type {
             case .standard:
                 return try AddTransaction.apply(
-                    account: &source,
+                    account: &account,
                     date: Transaction.date(from: transaction.date),
                     amount: transaction.amount,
                     notes: transaction.notes,
@@ -82,31 +66,17 @@ struct AddSplit {
                 } else {
                     throw AccountError.notFound
                 }
-                let date = Transaction.date(from: transaction.date)
-                let magnitude = abs(transaction.amount)
-                let fromLeg: Transaction
-                let toLeg: Transaction
-                if transaction.amount < 0 {
-                    (fromLeg, toLeg) = try AddTransfer.apply(
-                        fromAccount: &source,
-                        toAccount: &other,
-                        date: date,
-                        magnitude: magnitude,
-                        notes: transaction.notes
-                    )
-                } else {
-                    (fromLeg, toLeg) = try AddTransfer.apply(
-                        fromAccount: &other,
-                        toAccount: &source,
-                        date: date,
-                        magnitude: magnitude,
-                        notes: transaction.notes
-                    )
-                }
+                var (accountLeg, otherLeg) = try AddTransfer.apply(
+                    account: &account,
+                    counterpartAccount: &other,
+                    date: Transaction.date(from: transaction.date),
+                    amount: transaction.amount,
+                    notes: transaction.notes
+                )
                 others[other.id] = other
-                let counterpart = fromLeg.accountID == other.id ? fromLeg : toLeg
-                counterparts.append(counterpart)
-                return fromLeg.accountID == source.id ? fromLeg : toLeg
+                accountLeg.wrap(in: splitID)
+                counterparts.append(otherLeg)
+                return accountLeg
             case .split, .splitPart:
                 throw SplitError.malformed
             }
@@ -119,7 +89,8 @@ struct AddSplit {
         }
 
         // save the changes
-        try await store.accounts.save(source)
+        try Split.validate(total: total, parts: composition)  // TODO: check counterparts as well
+        try await store.accounts.save(account)
         try await store.accounts.save(batch: Array(others.values))
         try await store.transactions.save(total)
         try await store.transactions.save(batch: composition + counterparts)

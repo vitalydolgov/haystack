@@ -122,7 +122,7 @@ struct AddSplitTests {
         #expect(parts[1].notes == "Card")
         let transferID = try #require(parts[1].type.transferID)
         #expect(transferID != suppliedTransferID)
-        #expect(parts[1].type == .transfer(transferID))
+        #expect(parts[1].type == .splitPart(split.id, .transfer(transferID)))
 
         let (outgoing, incoming) = try #require(await transactions.queryTransfer(id: transferID))
         #expect(outgoing.id == parts[1].id)
@@ -181,144 +181,14 @@ struct AddSplitTests {
         #expect(try await accounts.query(id: other.id)?.balance == -20)
     }
 
-    // MARK: Validation
-
-    @Test func allowsSaveWhenStandardPartsSumToTotal() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 30)
-        let grocery = try Transaction.make(accountID: accountID, amount: 20)
-        let tax = try Transaction.make(accountID: accountID, amount: 10)
-
-        #expect(AddSplit.canExecute(total, parts: [grocery, tax]))
-    }
-
-    @Test func allowsSaveWhenTransferPartNamesAnotherAccount() throws {
-        let parentID = UUID()
-        let otherID = UUID()
-        let total = try Transaction.make(accountID: parentID, amount: -30)
-        let cash = try Transaction.make(accountID: parentID, amount: -10)
-        let card = try Transaction.make(accountID: otherID, amount: -20, type: .transfer(UUID()))
-
-        #expect(AddSplit.canExecute(total, parts: [cash, card]))
-    }
-
-    @Test func allowsSaveWhenEveryPartIsTransfer() throws {
-        let parentID = UUID()
-        let cardID = UUID()
-        let cashID = UUID()
-        let total = try Transaction.make(accountID: parentID, amount: -30)
-        let card = try Transaction.make(accountID: cardID, amount: -20, type: .transfer(UUID()))
-        let cash = try Transaction.make(accountID: cashID, amount: -10, type: .transfer(UUID()))
-
-        #expect(AddSplit.canExecute(total, parts: [card, cash]))
-    }
-
-    @Test func doesNotAllowSaveWhenTotalIsTransfer() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 30, type: .transfer(UUID()))
-        let parts = try standardParts(accountID: accountID, amounts: [20, 10])
-
-        #expect(!AddSplit.canExecute(total, parts: parts))
-    }
-
-    @Test func doesNotAllowSaveWhenTotalIsSplit() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 30, type: .split(UUID()))
-        let parts = try standardParts(accountID: accountID, amounts: [20, 10])
-
-        #expect(!AddSplit.canExecute(total, parts: parts))
-    }
-
-    @Test func doesNotAllowSaveWhenTotalIsSplitPart() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(
-            accountID: accountID,
-            amount: 30,
-            type: .splitPart(UUID(), .standard)
-        )
-        let parts = try standardParts(accountID: accountID, amounts: [20, 10])
-
-        #expect(!AddSplit.canExecute(total, parts: parts))
-    }
-
-    @Test(arguments: [0, 1])
-    func doesNotAllowSaveWhenPartCountIsBelowTwo(count: Int) throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 10)
-        let parts = try (0..<count).map { _ in
-            try Transaction.make(accountID: accountID, amount: 10)
-        }
-
-        #expect(!AddSplit.canExecute(total, parts: parts))
-    }
-
-    @Test func doesNotAllowSaveWhenPartIDsRepeat() throws {
-        let accountID = UUID()
-        let sharedID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 10)
-        let first = try Transaction.make(id: sharedID, accountID: accountID, amount: 6)
-        let second = try Transaction.make(id: sharedID, accountID: accountID, amount: 4)
-
-        #expect(!AddSplit.canExecute(total, parts: [first, second]))
-    }
-
-    @Test func doesNotAllowSaveWhenStandardPartAccountDiffers() throws {
-        let parentID = UUID()
-        let otherID = UUID()
-        let total = try Transaction.make(accountID: parentID, amount: 10)
-        let elsewhere = try Transaction.make(accountID: otherID, amount: 6)
-        let local = try Transaction.make(accountID: parentID, amount: 4)
-
-        #expect(!AddSplit.canExecute(total, parts: [elsewhere, local]))
-    }
-
-    @Test func doesNotAllowSaveWhenTransferPartAccountMatches() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 10)
-        let local = try Transaction.make(accountID: accountID, amount: 6)
-        let transfer = try Transaction.make(accountID: accountID, amount: 4, type: .transfer(UUID()))
-
-        #expect(!AddSplit.canExecute(total, parts: [local, transfer]))
-    }
-
-    @Test func doesNotAllowSaveWhenPartIsSplit() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 30)
-        let split = try Transaction.make(accountID: accountID, amount: 20, type: .split(UUID()))
-        let plain = try Transaction.make(accountID: accountID, amount: 10)
-
-        #expect(!AddSplit.canExecute(total, parts: [split, plain]))
-    }
-
-    @Test func doesNotAllowSaveWhenPartIsSplitPart() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 30)
-        let nested = try Transaction.make(
-            accountID: accountID,
-            amount: 20,
-            type: .splitPart(UUID(), .standard)
-        )
-        let plain = try Transaction.make(accountID: accountID, amount: 10)
-
-        #expect(!AddSplit.canExecute(total, parts: [nested, plain]))
-    }
-
-    @Test func doesNotAllowSaveWhenAmountsDiffer() throws {
-        let accountID = UUID()
-        let total = try Transaction.make(accountID: accountID, amount: 30)
-        let parts = try standardParts(accountID: accountID, amounts: [20, 5])
-
-        #expect(!AddSplit.canExecute(total, parts: parts))
-    }
-
-    // MARK: Errors
+    // MARK: Can execute
 
     @Test func failsWhenTotalIsTransfer() async throws {
         let (accounts, transactions, unitOfWork, account) = try await openAccount()
         let total = try Transaction.make(accountID: account.id, amount: 30, type: .transfer(UUID()))
         let parts = try standardParts(accountID: account.id, amounts: [20, 10])
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
         }
         #expect(await transactions.all().isEmpty)
@@ -330,7 +200,7 @@ struct AddSplitTests {
         let total = try Transaction.make(accountID: account.id, amount: 30, type: .split(UUID()))
         let parts = try standardParts(accountID: account.id, amounts: [20, 10])
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
         }
         #expect(await transactions.all().isEmpty)
@@ -346,7 +216,7 @@ struct AddSplitTests {
         )
         let parts = try standardParts(accountID: account.id, amounts: [20, 10])
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
         }
         #expect(await transactions.all().isEmpty)
@@ -361,7 +231,7 @@ struct AddSplitTests {
             try Transaction.make(accountID: account.id, amount: 10)
         }
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
         }
         #expect(await transactions.all().isEmpty)
@@ -375,7 +245,7 @@ struct AddSplitTests {
         let first = try Transaction.make(id: sharedID, accountID: account.id, amount: 6)
         let second = try Transaction.make(id: sharedID, accountID: account.id, amount: 4)
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [first, second])
         }
         #expect(await transactions.all().isEmpty)
@@ -388,7 +258,7 @@ struct AddSplitTests {
         let elsewhere = try Transaction.make(accountID: UUID(), amount: 6)
         let local = try Transaction.make(accountID: account.id, amount: 4)
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [elsewhere, local])
         }
         #expect(await transactions.all().isEmpty)
@@ -401,7 +271,7 @@ struct AddSplitTests {
         let local = try Transaction.make(accountID: account.id, amount: 6)
         let transfer = try Transaction.make(accountID: account.id, amount: 4, type: .transfer(UUID()))
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [local, transfer])
         }
         #expect(await transactions.all().isEmpty)
@@ -414,7 +284,7 @@ struct AddSplitTests {
         let split = try Transaction.make(accountID: account.id, amount: 20, type: .split(UUID()))
         let plain = try Transaction.make(accountID: account.id, amount: 10)
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [split, plain])
         }
         #expect(await transactions.all().isEmpty)
@@ -431,7 +301,7 @@ struct AddSplitTests {
         )
         let plain = try Transaction.make(accountID: account.id, amount: 10)
 
-        await #expect(throws: SplitError.malformed) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [nested, plain])
         }
         #expect(await transactions.all().isEmpty)
@@ -443,12 +313,14 @@ struct AddSplitTests {
         let total = try Transaction.make(accountID: account.id, amount: 30)
         let parts = try standardParts(accountID: account.id, amounts: [20, 5])
 
-        await #expect(throws: SplitError.invalidAmount) {
+        await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
         }
         #expect(await transactions.all().isEmpty)
         #expect(try await accounts.query(id: account.id)?.balance == 0)
     }
+
+    // MARK: Errors
 
     @Test func failsWhenMissing() async throws {
         let accounts = InMemoryAccountRepository()

@@ -47,7 +47,7 @@ enum SplitError: Error, Equatable, Sendable {
 struct Transaction: Identifiable, Equatable, Sendable {
     let id: UUID
     let accountID: UUID
-    let type: TransactionType
+    private(set) var type: TransactionType
     private(set) var date: (year: Int, month: Int, day: Int)
     private(set) var amount: Decimal
     private(set) var notes: String
@@ -78,6 +78,10 @@ struct Transaction: Identifiable, Equatable, Sendable {
         self.date = date
         self.amount = amount
         self.notes = notes
+    }
+
+    mutating func wrap(in split: UUID) {
+        type = .splitPart(split, type)
     }
 
     func delete(at date: Date = .now) -> DeletedTransaction {
