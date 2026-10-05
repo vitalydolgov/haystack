@@ -4,41 +4,13 @@ import TransactionalMacro
 struct DeleteSplit {
     let unitOfWork: UnitOfWork
 
-    private static func validate(_ total: Transaction, parts: [Transaction]) throws {
-        guard case .split(let splitID) = total.type, splitID == total.id else {
-            throw SplitError.malformed
-        }
-        guard Set(parts.map(\.id)).count == parts.count else {
-            throw SplitError.malformed
-        }
-        for part in parts {
-            guard part.id != total.id else { throw SplitError.malformed }
-            switch part.type {
-            case .splitPart(let partSplitID, .standard),
-                 .splitPart(let partSplitID, .transfer):
-                guard partSplitID == splitID, part.accountID == total.accountID else {
-                    throw SplitError.malformed
-                }
-            case .standard, .transfer, .split, .splitPart:
-                throw SplitError.malformed
-            }
-        }
-        let transferIDs = parts.compactMap(\.type.transferID)
-        guard Set(transferIDs).count == transferIDs.count else {
-            throw SplitError.malformed
-        }
-        guard parts.reduce(Decimal(0), { $0 + $1.amount }) == total.amount else {
-            throw SplitError.invalidAmount
-        }
-    }
-
     // TODO: refactor with apply method
     @Transactional
     func execute(id: UUID, at date: Date = .now) async throws {
+        // TODO: check invariants before saving
         guard let (total, parts) = try await store.transactions.querySplit(id: id) else {
             throw TransactionError.notFound
         }
-        try Self.validate(total, parts: parts)
 
         // load the account
         guard var source = try await store.accounts.query(id: total.accountID) else {
@@ -70,27 +42,16 @@ struct DeleteSplit {
                 } else {
                     throw AccountError.notFound
                 }
-                let (deletedFrom, deletedTo): (DeletedTransaction, DeletedTransaction)
-                if fromLeg.id == part.id {
-                    (deletedFrom, deletedTo) = DeleteTransfer.apply(
-                        fromAccount: &source,
-                        toAccount: &other,
-                        fromLeg: fromLeg,
-                        toLeg: toLeg,
-                        at: date
-                    )
-                } else {
-                    (deletedFrom, deletedTo) = DeleteTransfer.apply(
-                        fromAccount: &other,
-                        toAccount: &source,
-                        fromLeg: fromLeg,
-                        toLeg: toLeg,
-                        at: date
-                    )
-                }
+                let (deletedPart, deletedCounterpart) = DeleteTransfer.apply(
+                    account: &source,
+                    counterpartAccount: &other,
+                    transaction: part,
+                    counterpartTransaction: counterpart,
+                    at: date
+                )
                 others[other.id] = other
-                deleted.append(deletedFrom)
-                deleted.append(deletedTo)
+                deleted.append(deletedPart)
+                deleted.append(deletedCounterpart)
             case .standard, .transfer, .split, .splitPart:
                 throw SplitError.malformed
             }
