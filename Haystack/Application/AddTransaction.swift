@@ -8,25 +8,49 @@ struct AddTransaction {
         amount != 0
     }
 
+    static func apply(
+        account: inout Account,
+        date: Date = .now,
+        amount: Decimal,
+        notes: String = "",
+        splitID: UUID? = nil
+    ) throws -> Transaction {
+        guard amount != 0 else { throw TransactionError.invalidAmount }
+        guard !account.isClosed else { throw AccountError.closed }
+        let type: TransactionType = if let splitID {
+            .splitPart(splitID, .standard)
+        } else {
+            .standard
+        }
+        let transaction = try Transaction(
+            accountID: account.id,
+            date: date.asYearMonthDay(),
+            amount: amount,
+            notes: notes,
+            type: type
+        )
+        account += transaction
+        return transaction
+    }
+
     @Transactional
     func execute(
         accountID: UUID,
         date: Date = .now,
         amount: Decimal,
-        notes: String = ""
+        notes: String = "",
+        splitID: UUID? = nil
     ) async throws -> Transaction {
-        guard amount != 0 else { throw TransactionError.invalidAmount }
         guard var account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
-        guard !account.isClosed else { throw AccountError.closed }
-        let transaction = try Transaction(
-            accountID: accountID,
-            date: date.asYearMonthDay(),
+        let transaction = try Self.apply(
+            account: &account,
+            date: date,
             amount: amount,
-            notes: notes
+            notes: notes,
+            splitID: splitID
         )
-        account += transaction
         try await store.accounts.save(account)
         try await store.transactions.save(transaction)
         return transaction

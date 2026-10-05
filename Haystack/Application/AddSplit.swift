@@ -59,24 +59,52 @@ struct AddSplit {
             type: .split(splitID)
         )
 
+        var others: [UUID: Account] = [:]
+        var counterparts: [Transaction] = []
+
         func part(from transaction: Transaction) async throws -> Transaction {
             switch transaction.type {
             case .standard:
-                return try Transaction(
-                    accountID: transaction.accountID,
-                    date: transaction.date,
+                return try AddTransaction.apply(
+                    account: &source,
+                    date: Transaction.date(from: transaction.date),
                     amount: transaction.amount,
                     notes: transaction.notes,
-                    type: .splitPart(splitID, transaction.type)
+                    splitID: splitID
                 )
             case .transfer:
-                let (fromLeg, toLeg) = try await AddTransfer(unitOfWork: unitOfWork).execute(
-                    fromAccountID: transaction.amount < 0 ? source.id : transaction.accountID,
-                    toAccountID: transaction.amount < 0 ? transaction.accountID : source.id,
-                    date: Transaction.date(from: transaction.date),
-                    magnitude: abs(transaction.amount),
-                    notes: transaction.notes
-                )
+                var other: Account
+                if let cached = others[transaction.accountID] {
+                    other = cached
+                } else if let loaded = try await store.accounts.query(id: transaction.accountID) {
+                    other = loaded
+                } else {
+                    throw AccountError.notFound
+                }
+                let date = Transaction.date(from: transaction.date)
+                let magnitude = abs(transaction.amount)
+                let fromLeg: Transaction
+                let toLeg: Transaction
+                if transaction.amount < 0 {
+                    (fromLeg, toLeg) = try AddTransfer.apply(
+                        fromAccount: &source,
+                        toAccount: &other,
+                        date: date,
+                        magnitude: magnitude,
+                        notes: transaction.notes
+                    )
+                } else {
+                    (fromLeg, toLeg) = try AddTransfer.apply(
+                        fromAccount: &other,
+                        toAccount: &source,
+                        date: date,
+                        magnitude: magnitude,
+                        notes: transaction.notes
+                    )
+                }
+                others[other.id] = other
+                let counterpart = fromLeg.accountID == other.id ? fromLeg : toLeg
+                counterparts.append(counterpart)
                 return fromLeg.accountID == source.id ? fromLeg : toLeg
             case .split, .splitPart:
                 throw SplitError.malformed
@@ -86,15 +114,14 @@ struct AddSplit {
         // build the parts
         var composition: [Transaction] = []
         for transaction in parts {
-            let part = try await part(from: transaction)
-            source += part
-            composition.append(part)
+            composition.append(try await part(from: transaction))
         }
 
-        // save the split
-        try await store.transactions.save(total)
-        try await store.transactions.save(batch: composition)
+        // save the changes
         try await store.accounts.save(source)
+        try await store.accounts.save(batch: Array(others.values))
+        try await store.transactions.save(total)
+        try await store.transactions.save(batch: composition + counterparts)
 
         return (total, composition)
     }

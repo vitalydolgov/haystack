@@ -18,5 +18,6 @@ extension AccountQuerying {
 
 protocol AccountRepository: AccountQuerying, Sendable {
     func save(_ account: Account) async throws
+    func save(batch: [Account]) async throws
     func delete(_ account: DeletedAccount) async throws
 }

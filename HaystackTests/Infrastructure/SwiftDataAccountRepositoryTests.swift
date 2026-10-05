@@ -76,6 +76,43 @@ struct SwiftDataAccountRepositoryTests {
         #expect(try await accounts.query(id: account.id) == nil)
     }
 
+    // MARK: Save Batch
+
+    @Test func savesEveryAccount() async throws {
+        let (_, accounts) = try await makeStore()
+        let wallet = try Account.make(name: "Wallet")
+        let checking = try Account.make(name: "Checking")
+        try await accounts.save(batch: [wallet, checking])
+
+        #expect(try await accounts.query(id: wallet.id)?.name == "Wallet")
+        #expect(try await accounts.query(id: checking.id)?.name == "Checking")
+    }
+
+    @Test func updatesStoredAccounts() async throws {
+        let (_, accounts) = try await makeStore()
+        let wallet = try Account.make(name: "Wallet")
+        let checking = try Account.make(name: "Checking")
+        try await accounts.save(batch: [wallet, checking])
+        let updatedWallet = try Account.make(id: wallet.id, name: "Cash")
+        let updatedChecking = try Account.make(id: checking.id, name: "Bank")
+        try await accounts.save(batch: [updatedWallet, updatedChecking])
+
+        #expect(try await accounts.query(id: wallet.id)?.name == "Cash")
+        #expect(try await accounts.query(id: checking.id)?.name == "Bank")
+    }
+
+    @Test func skipsDeletedAccount() async throws {
+        let (_, accounts) = try await makeStore()
+        let deleted = try Account.make(name: "Gone", isClosed: true)
+        try await accounts.save(deleted)
+        try await accounts.delete(try deleted.delete(at: Date(timeIntervalSince1970: 1_700_000_000)))
+        let kept = try Account.make(name: "Kept")
+        try await accounts.save(batch: [deleted, kept])
+
+        #expect(try await accounts.query(id: deleted.id) == nil)
+        #expect(try await accounts.query(id: kept.id)?.name == "Kept")
+    }
+
     // MARK: Query
 
     @Test func findsALiveAccount() async throws {

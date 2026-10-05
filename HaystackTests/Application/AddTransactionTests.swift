@@ -28,6 +28,25 @@ struct AddTransactionTests {
         #expect(try await accounts.query(id: account.id)?.balance == -12.5)
     }
 
+    @Test func persistsSplitPart() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make()
+        await accounts.save(account)
+        let splitID = UUID()
+
+        let added = try await AddTransaction(unitOfWork: unitOfWork).execute(
+            accountID: account.id,
+            amount: -12.5,
+            splitID: splitID
+        )
+        let stored = try #require(await transactions.query(id: added.id))
+
+        #expect(stored.type == .splitPart(splitID, .standard))
+        #expect(try await accounts.query(id: account.id)?.balance == -12.5)
+    }
+
     // MARK: Validation
 
     @Test func allowsSaveWhenAmountIsNonZero() {

@@ -19,6 +19,12 @@ actor SwiftDataAccountRepository: AccountRepository, ModelActor {
         }
     }
 
+    func save(batch: [Account]) throws {
+        for account in batch {
+            try save(account)
+        }
+    }
+
     func query(id: UUID, includeDeleted: Bool) throws -> Account? {
         let descriptor = descriptor(id: id, includeDeleted: includeDeleted)
         guard let record = try modelContext.fetch(descriptor).first else {

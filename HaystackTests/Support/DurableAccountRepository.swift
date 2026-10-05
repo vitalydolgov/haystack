@@ -13,6 +13,12 @@ struct DurableAccountRepository: AccountRepository {
         try await unitOfWork.perform { try await $0.accounts.save(account) }
     }
 
+    func save(batch: [Account]) async throws {
+        try await unitOfWork.perform { store in
+            try await store.accounts.save(batch: batch)
+        }
+    }
+
     func query(id: UUID, includeDeleted: Bool) async throws -> Account? {
         try await unitOfWork.store.accounts.query(id: id, includeDeleted: includeDeleted)
     }

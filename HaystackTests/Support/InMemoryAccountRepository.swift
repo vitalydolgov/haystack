@@ -10,6 +10,12 @@ actor InMemoryAccountRepository: AccountRepository {
         accounts[account.id] = account
     }
 
+    func save(batch: [Account]) {
+        for account in batch {
+            save(account)
+        }
+    }
+
     func query(id: UUID, includeDeleted _: Bool) -> Account? {
         accounts[id]
     }

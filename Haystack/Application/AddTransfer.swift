@@ -8,6 +8,36 @@ struct AddTransfer {
         fromAccountID != toAccountID && magnitude > 0
     }
 
+    static func apply(
+        fromAccount: inout Account,
+        toAccount: inout Account,
+        date: Date = .now,
+        magnitude: Decimal,
+        notes: String = ""
+    ) throws -> (Transaction, Transaction) {
+        guard fromAccount.id != toAccount.id else { throw TransferError.sameAccount }
+        guard !fromAccount.isClosed, !toAccount.isClosed else { throw AccountError.closed }
+        let transferID = UUID()
+        let day = date.asYearMonthDay()
+        let fromLeg = try Transaction(
+            accountID: fromAccount.id,
+            date: day,
+            amount: -magnitude,
+            notes: notes,
+            type: .transfer(transferID)
+        )
+        let toLeg = try Transaction(
+            accountID: toAccount.id,
+            date: day,
+            amount: magnitude,
+            notes: notes,
+            type: .transfer(transferID)
+        )
+        fromAccount += fromLeg
+        toAccount += toLeg
+        return (fromLeg, toLeg)
+    }
+
     @Transactional
     func execute(
         fromAccountID: UUID,
@@ -16,46 +46,21 @@ struct AddTransfer {
         magnitude: Decimal,
         notes: String = ""
     ) async throws -> (Transaction, Transaction) {
-        guard fromAccountID != toAccountID else {
-            throw TransferError.sameAccount
-        }
-
-        // make transfer legs
-        let transferID = UUID()
-        let components = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
-        let fromLeg = try Transaction(
-            accountID: fromAccountID,
-            date: (year: components.year!, month: components.month!, day: components.day!),
-            amount: -magnitude,
-            notes: notes,
-            type: .transfer(transferID)
-        )
-        let toLeg = try Transaction(
-            accountID: toAccountID,
-            date: (year: components.year!, month: components.month!, day: components.day!),
-            amount: magnitude,
-            notes: notes,
-            type: .transfer(transferID)
-        )
-
-        // add outgoing leg
-        guard var fromAccount = try await store.accounts.query(id: fromAccountID) else {
+        guard var fromAccount = try await store.accounts.query(id: fromAccountID),
+              var toAccount = try await store.accounts.query(id: toAccountID) else {
             throw AccountError.notFound
         }
-        guard !fromAccount.isClosed else { throw AccountError.closed }
-        fromAccount += fromLeg
+        let (fromLeg, toLeg) = try Self.apply(
+            fromAccount: &fromAccount,
+            toAccount: &toAccount,
+            date: date,
+            magnitude: magnitude,
+            notes: notes
+        )
         try await store.accounts.save(fromAccount)
         try await store.transactions.save(fromLeg)
-
-        // add incoming leg
-        guard var toAccount = try await store.accounts.query(id: toAccountID) else {
-            throw AccountError.notFound
-        }
-        guard !toAccount.isClosed else { throw AccountError.closed }
-        toAccount += toLeg
         try await store.accounts.save(toAccount)
         try await store.transactions.save(toLeg)
-
         return (fromLeg, toLeg)
     }
 }
