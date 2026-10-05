@@ -207,4 +207,57 @@ struct EditTransactionTests {
         #expect(await transactions.query(id: fromLeg.id)?.amount == -10)
         #expect(await transactions.query(id: toLeg.id)?.amount == 10)
     }
+
+    @Test func failsWhenSplit() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make(balance: 0)
+        await accounts.save(account)
+        let splitID = UUID()
+        let total = try Transaction.make(
+            id: splitID,
+            accountID: account.id,
+            amount: -30,
+            type: .split(splitID)
+        )
+        await transactions.save(total)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
+                id: total.id,
+                accountID: account.id,
+                date: .now,
+                amount: -20
+            )
+        }
+        #expect(await transactions.query(id: total.id)?.amount == -30)
+        #expect(try await accounts.query(id: account.id)?.balance == 0)
+    }
+
+    @Test func failsWhenSplitPart() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make(balance: -10)
+        await accounts.save(account)
+        let splitID = UUID()
+        let part = try Transaction.make(
+            accountID: account.id,
+            amount: -10,
+            type: .splitPart(splitID, .standard)
+        )
+        await transactions.save(part)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await EditTransaction(unitOfWork: unitOfWork).execute(
+                id: part.id,
+                accountID: account.id,
+                date: .now,
+                amount: -20
+            )
+        }
+        #expect(await transactions.query(id: part.id)?.amount == -10)
+        #expect(try await accounts.query(id: account.id)?.balance == -10)
+    }
 }

@@ -24,7 +24,7 @@ struct ConvertTransactionToTransfer {
 
         // remove old transaction
         guard let transaction = try await store.transactions.query(id: id),
-              transaction.type.transferID == nil else {
+              case .standard = transaction.type else {
             throw TransactionError.notFound
         }
         guard var transactionAccount = try await store.accounts.query(id: transaction.accountID) else {

@@ -184,4 +184,59 @@ struct MoveTransactionTests {
         #expect(await transactions.query(id: fromLeg.id)?.accountID == source.id)
         #expect(await transactions.query(id: toLeg.id)?.accountID == counterpart.id)
     }
+
+    @Test func failsWhenSplit() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let source = try Account.make(balance: 0)
+        let target = try Account.make(name: "Savings")
+        await accounts.save(source)
+        await accounts.save(target)
+        let splitID = UUID()
+        let total = try Transaction.make(
+            id: splitID,
+            accountID: source.id,
+            amount: -30,
+            type: .split(splitID)
+        )
+        await transactions.save(total)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
+                id: total.id,
+                movingTo: target.id
+            )
+        }
+        #expect(await transactions.query(id: total.id)?.accountID == source.id)
+        #expect(try await accounts.query(id: source.id)?.balance == 0)
+        #expect(try await accounts.query(id: target.id)?.balance == 0)
+    }
+
+    @Test func failsWhenSplitPart() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let source = try Account.make(balance: -10)
+        let target = try Account.make(name: "Savings")
+        await accounts.save(source)
+        await accounts.save(target)
+        let splitID = UUID()
+        let part = try Transaction.make(
+            accountID: source.id,
+            amount: -10,
+            type: .splitPart(splitID, .standard)
+        )
+        await transactions.save(part)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await MoveTransaction(unitOfWork: unitOfWork).execute(
+                id: part.id,
+                movingTo: target.id
+            )
+        }
+        #expect(await transactions.query(id: part.id)?.accountID == source.id)
+        #expect(try await accounts.query(id: source.id)?.balance == -10)
+        #expect(try await accounts.query(id: target.id)?.balance == 0)
+    }
 }

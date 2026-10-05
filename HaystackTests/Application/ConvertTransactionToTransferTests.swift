@@ -181,6 +181,69 @@ struct ConvertTransactionToTransferTests {
         #expect(await transactions.all().count == 2)
     }
 
+    @Test func failsWhenSplit() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make(balance: 0)
+        let counterpartAccount = try Account.make(type: .savings)
+        await accounts.save(account)
+        await accounts.save(counterpartAccount)
+        let splitID = UUID()
+        let total = try Transaction.make(
+            id: splitID,
+            accountID: account.id,
+            amount: -30,
+            type: .split(splitID)
+        )
+        await transactions.save(total)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
+                id: total.id,
+                accountID: account.id,
+                counterpartAccountID: counterpartAccount.id,
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                amount: -30
+            )
+        }
+        #expect(await transactions.query(id: total.id)?.type == .split(splitID))
+        #expect(await transactions.all().count == 1)
+        #expect(try await accounts.query(id: account.id)?.balance == 0)
+        #expect(try await accounts.query(id: counterpartAccount.id)?.balance == 0)
+    }
+
+    @Test func failsWhenSplitPart() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let account = try Account.make(balance: -10)
+        let counterpartAccount = try Account.make(type: .savings)
+        await accounts.save(account)
+        await accounts.save(counterpartAccount)
+        let splitID = UUID()
+        let part = try Transaction.make(
+            accountID: account.id,
+            amount: -10,
+            type: .splitPart(splitID, .standard)
+        )
+        await transactions.save(part)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
+                id: part.id,
+                accountID: account.id,
+                counterpartAccountID: counterpartAccount.id,
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                amount: -10
+            )
+        }
+        #expect(await transactions.query(id: part.id)?.type == .splitPart(splitID, .standard))
+        #expect(await transactions.all().count == 1)
+        #expect(try await accounts.query(id: account.id)?.balance == -10)
+        #expect(try await accounts.query(id: counterpartAccount.id)?.balance == 0)
+    }
+
     @Test func failsWhenAccountIsMissing() async throws {
         let accounts = InMemoryAccountRepository()
         let transactions = InMemoryTransactionRepository()

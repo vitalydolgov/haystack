@@ -11,7 +11,7 @@ struct MoveTransaction {
     @Transactional
     func execute(id: UUID, movingTo accountID: UUID) async throws {
         guard let originalTx = try await store.transactions.query(id: id),
-              originalTx.type.transferID == nil else {
+              case .standard = originalTx.type else {
             throw TransactionError.notFound
         }
         guard originalTx.accountID != accountID else { return }

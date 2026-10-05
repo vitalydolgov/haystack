@@ -63,4 +63,30 @@ struct DeleteTransactionTests {
         #expect(await transactions.query(id: fromLeg.id) != nil)
         #expect(await transactions.query(id: toLeg.id) != nil)
     }
+
+    @Test func failsWhenSplit() async throws {
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
+        let splitID = UUID()
+        let total = try Transaction.make(id: splitID, amount: -30, type: .split(splitID))
+        await transactions.save(total)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: total.id)
+        }
+        #expect(await transactions.query(id: total.id)?.type == .split(splitID))
+    }
+
+    @Test func failsWhenSplitPart() async throws {
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(transactions: transactions)
+        let splitID = UUID()
+        let part = try Transaction.make(amount: -10, type: .splitPart(splitID, .standard))
+        await transactions.save(part)
+
+        await #expect(throws: TransactionError.notFound) {
+            try await DeleteTransaction(unitOfWork: unitOfWork).execute(id: part.id)
+        }
+        #expect(await transactions.query(id: part.id)?.type == .splitPart(splitID, .standard))
+    }
 }
