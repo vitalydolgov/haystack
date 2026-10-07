@@ -22,7 +22,6 @@ struct AddSplit {
         _ transaction: Transaction,
         parts: [Transaction]
     ) async throws -> (Transaction, [Transaction]) {
-
         guard Self.canExecute(transaction, parts: parts) else {
             throw ApplicationError.cannotExecute
         }
@@ -44,8 +43,8 @@ struct AddSplit {
             type: .split(splitID)
         )
 
-        var others: [UUID: Account] = [:]
-        var counterparts: [Transaction] = []
+        var counterparts: [UUID: Account] = [:]
+        var counterpartLegs: [Transaction] = []
 
         func part(from transaction: Transaction) async throws -> Transaction {
             switch transaction.type {
@@ -58,25 +57,25 @@ struct AddSplit {
                     splitID: splitID
                 )
             case .transfer:
-                var other: Account
-                if let cached = others[transaction.accountID] {
-                    other = cached
+                var counterpart: Account
+                if let cached = counterparts[transaction.accountID] {
+                    counterpart = cached
                 } else if let loaded = try await store.accounts.query(id: transaction.accountID) {
-                    other = loaded
+                    counterpart = loaded
                 } else {
                     throw AccountError.notFound
                 }
-                var (accountLeg, otherLeg) = try AddTransfer.apply(
+                var (leg, counterpartLeg) = try AddTransfer.apply(
                     account: &account,
-                    counterpartAccount: &other,
+                    counterpartAccount: &counterpart,
                     date: Transaction.date(from: transaction.date),
                     amount: transaction.amount,
                     notes: transaction.notes
                 )
-                others[other.id] = other
-                accountLeg.wrap(in: splitID)
-                counterparts.append(otherLeg)
-                return accountLeg
+                counterparts[counterpart.id] = counterpart
+                leg.wrap(in: splitID)
+                counterpartLegs.append(counterpartLeg)
+                return leg
             case .split, .splitPart:
                 throw SplitError.malformed
             }
@@ -89,11 +88,11 @@ struct AddSplit {
         }
 
         // save the changes
-        try Split.validate(total: total, parts: composition)  // TODO: check counterparts as well
+        try Split.validate(total: total, parts: composition)  // TODO: check counterpart legs as well
         try await store.accounts.save(account)
-        try await store.accounts.save(batch: Array(others.values))
+        try await store.accounts.save(batch: Array(counterparts.values))
         try await store.transactions.save(total)
-        try await store.transactions.save(batch: composition + counterparts)
+        try await store.transactions.save(batch: composition + counterpartLegs)
 
         return (total, composition)
     }

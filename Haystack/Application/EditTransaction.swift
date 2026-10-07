@@ -25,10 +25,10 @@ struct EditTransaction {
               case .standard = currentTx.type else {
             throw TransactionError.notFound
         }
-        guard var source = try await store.accounts.query(id: currentTx.accountID) else {
+        guard var account = try await store.accounts.query(id: currentTx.accountID) else {
             throw AccountError.notFound
         }
-        guard !source.isClosed else { throw AccountError.closed }
+        guard !account.isClosed else { throw AccountError.closed }
 
         let updatedTx = try Transaction(
             id: currentTx.id,
@@ -40,18 +40,18 @@ struct EditTransaction {
         )
 
         if currentTx.accountID == accountID {
-            source -= currentTx
-            source += updatedTx
-            try await store.accounts.save(source)
+            account -= currentTx
+            account += updatedTx
+            try await store.accounts.save(account)
         } else {
-            guard var target = try await store.accounts.query(id: accountID) else {
+            guard var movingToAccount = try await store.accounts.query(id: accountID) else {
                 throw AccountError.notFound
             }
-            guard !target.isClosed else { throw AccountError.closed }
-            source -= currentTx
-            target += updatedTx
-            try await store.accounts.save(source)
-            try await store.accounts.save(target)
+            guard !movingToAccount.isClosed else { throw AccountError.closed }
+            account -= currentTx
+            movingToAccount += updatedTx
+            try await store.accounts.save(account)
+            try await store.accounts.save(movingToAccount)
         }
         try await store.transactions.save(updatedTx)
     }
