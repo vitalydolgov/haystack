@@ -29,6 +29,11 @@ After changing `project.yml`, run `make generate`. Simulator name comes from `.e
 
 ## Conventions
 
+### Swift
+
+- Do not force unwrap (`!`). When a required value is missing, bind it with `guard` and throw an error.
+- Combine conditions that throw the same error into one `guard`.
+
 ### `@Transactional`
 
 A body macro on mutating use-case `execute` methods. It wraps the method body in `unitOfWork.perform { store in ... }`, so the body can use `store` (accounts and transactions repositories) even though `store` is not a parameter.
@@ -56,7 +61,7 @@ Do not use articles (a, an, the) in test names.
 
 **Domain.** Exercise types in memory. Cover identity and field invariants, then group remaining tests by operation. Inside each group, put the happy path first.
 
-**Application.** One suite per use case, against in-memory fakes. Put the happy path first and leave it unmarked, then `// MARK: Validation`, then `// MARK: Errors`.
+**Application.** One suite per use case, against in-memory fakes. Put the happy path first and leave it unmarked, then `// MARK: Can execute`, then `// MARK: Errors`. Test only errors the use case throws. Repository errors have their own tests.
 
 **Persistence.** Exercise the real store. Group tests by operation. Inside each group, put the happy path first. A round-trip of all fields is the one case that should snapshot every field.
 
