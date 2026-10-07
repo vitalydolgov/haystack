@@ -33,20 +33,20 @@ actor InMemoryTransactionRepository: TransactionRepository {
 
     func queryTransfer(id: UUID) -> (Transaction, Transaction)? {
         let legs = transactions.values.filter { $0.type.transferID == id && tombstones[$0.id] == nil }
-        guard legs.count == 2 else { return nil }
-        let fromLeg = legs.first { $0.amount < 0 }
-        let toLeg = legs.first { $0.amount > 0 }
-        guard let fromLeg = fromLeg, let toLeg = toLeg else { return nil }
-        return (fromLeg, toLeg)
+        guard legs.count == 2,
+              let outflow = legs.first(where: { $0.amount < 0 }),
+              let inflow = legs.first(where: { $0.amount > 0 }) else {
+            return nil
+        }
+        return (outflow, inflow)
     }
 
-    func queryCounterpart(transactionID: UUID) -> Transaction? {
+    func queryCounterpart(transactionID: UUID) async throws -> Transaction? {
         guard let transaction = query(id: transactionID),
               let transferID = transaction.type.transferID,
-              let (fromLeg, toLeg) = queryTransfer(id: transferID) else { return nil }
-        if fromLeg.id == transaction.id { return toLeg }
-        if toLeg.id == transaction.id { return fromLeg }
-        return nil
+              let (leg, counterpartLeg) = try await queryTransfer(id: transferID, relativeTo: transaction.accountID),
+              leg.id == transaction.id else { return nil }
+        return counterpartLeg
     }
 
     func querySplit(id: UUID) -> (Transaction, [Transaction])? {

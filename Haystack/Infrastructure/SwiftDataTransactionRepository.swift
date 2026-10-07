@@ -45,20 +45,20 @@ actor SwiftDataTransactionRepository: TransactionRepository, ModelActor {
             predicate: #Predicate { $0.transferID == transferID && $0.deletedAt == nil }
         )
         let transactions = try modelContext.fetch(descriptor).map { try $0.toTransaction() }
-        guard transactions.count == 2 else { return nil }
-        let outflow = transactions.first { $0.amount < 0 }
-        let inflow = transactions.first { $0.amount > 0 }
-        guard let outflow, let inflow else { return nil }
+        guard transactions.count == 2,
+              let outflow = transactions.first(where: { $0.amount < 0 }),
+              let inflow = transactions.first(where: { $0.amount > 0 }) else {
+            return nil
+        }
         return (outflow, inflow)
     }
 
-    func queryCounterpart(transactionID: UUID) throws -> Transaction? {
+    func queryCounterpart(transactionID: UUID) async throws -> Transaction? {
         guard let transaction = try query(id: transactionID),
               let transferID = transaction.type.transferID,
-              let (outflow, inflow) = try queryTransfer(id: transferID) else { return nil }
-        if outflow.id == transaction.id { return inflow }
-        if inflow.id == transaction.id { return outflow }
-        return nil
+              let (leg, counterpartLeg) = try await queryTransfer(id: transferID, relativeTo: transaction.accountID),
+              leg.id == transaction.id else { return nil }
+        return counterpartLeg
     }
 
     func querySplit(id: UUID) throws -> (Transaction, [Transaction])? {

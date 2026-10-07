@@ -183,6 +183,12 @@ struct SwiftDataTransactionRepositoryTests {
         let (foundFrom, foundTo) = try #require(try await reader(container).queryTransfer(id: transferID))
         #expect(foundFrom.id == fromLeg.id)
         #expect(foundTo.id == toLeg.id)
+        let (foundToFirst, foundFromSecond) = try #require(
+            try await reader(container).queryTransfer(id: transferID, relativeTo: toLeg.accountID)
+        )
+        #expect(foundToFirst.id == toLeg.id)
+        #expect(foundFromSecond.id == fromLeg.id)
+        #expect(try await reader(container).queryTransfer(id: transferID, relativeTo: UUID()) == nil)
         #expect(foundFrom.type.transferID == transferID)
         #expect(foundTo.type.transferID == transferID)
     }
