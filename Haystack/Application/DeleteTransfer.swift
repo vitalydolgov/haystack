@@ -22,13 +22,11 @@ struct DeleteTransfer {
         guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: id) else {
             throw TransferError.notFound
         }
-        guard var fromAccount = try await store.accounts.query(id: fromLeg.accountID) else {
+        guard var fromAccount = try await store.accounts.query(id: fromLeg.accountID),
+              var toAccount = try await store.accounts.query(id: toLeg.accountID) else {
             throw AccountError.notFound
         }
-        guard var toAccount = try await store.accounts.query(id: toLeg.accountID) else {
-            throw AccountError.notFound
-        }
-        let (deleted, deletedCounterpart) = Self.apply(
+        let (deletedFromLeg, deletedToLeg) = Self.apply(
             account: &fromAccount,
             counterpartAccount: &toAccount,
             transaction: fromLeg,
@@ -36,8 +34,8 @@ struct DeleteTransfer {
             at: date
         )
         try await store.accounts.save(fromAccount)
-        try await store.transactions.delete(deleted)
+        try await store.transactions.delete(deletedFromLeg)
         try await store.accounts.save(toAccount)
-        try await store.transactions.delete(deletedCounterpart)
+        try await store.transactions.delete(deletedToLeg)
     }
 }

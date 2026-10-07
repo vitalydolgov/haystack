@@ -124,7 +124,9 @@ struct AddSplitTests {
         #expect(transferID != suppliedTransferID)
         #expect(parts[1].type == .splitPart(split.id, .transfer(transferID)))
 
-        let (outgoing, incoming) = try #require(await transactions.queryTransfer(id: transferID))
+        let (outgoing, incoming) = try #require(
+            try await transactions.queryTransfer(id: transferID, relativeTo: parent.id)
+        )
         #expect(outgoing.id == parts[1].id)
         #expect(outgoing.accountID == parent.id)
         #expect(outgoing.amount == -20)
@@ -168,7 +170,9 @@ struct AddSplitTests {
         #expect(parts[1].amount == 20)
         #expect(parts[1].notes == "Card")
         let transferID = try #require(parts[1].type.transferID)
-        let (outgoing, incoming) = try #require(await transactions.queryTransfer(id: transferID))
+        let (outgoing, incoming) = try #require(
+            try await transactions.queryTransfer(id: transferID, relativeTo: other.id)
+        )
         #expect(outgoing.accountID == other.id)
         #expect(outgoing.amount == -20)
         #expect(outgoing.notes == "Card")

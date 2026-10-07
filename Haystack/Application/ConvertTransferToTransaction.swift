@@ -18,21 +18,17 @@ struct ConvertTransferToTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws {
-        // TODO: guard with canExecute
-        // TODO: check invariants before saving
-        guard amount != 0 else { throw TransactionError.invalidAmount }
-
-        // figure out what to keep
-        guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: transferID) else {
-            throw TransferError.notFound
+        guard Self.canExecute(amount: amount) else {
+            throw ApplicationError.cannotExecute
         }
-        let (keptLeg, droppedLeg): (Transaction, Transaction)
-        switch accountID {
-        case fromLeg.accountID:
-            (keptLeg, droppedLeg) = (fromLeg, toLeg)
-        case toLeg.accountID:
-            (keptLeg, droppedLeg) = (toLeg, fromLeg)
-        default:
+        // TODO: check invariants before saving
+        guard let (keptLeg, droppedLeg) = try await store.transactions.queryTransfer(
+            id: transferID,
+            relativeTo: accountID
+        ) else {
+            if try await store.transactions.queryTransfer(id: transferID) == nil {
+                throw TransferError.notFound
+            }
             throw TransactionError.notFound
         }
 
@@ -52,20 +48,20 @@ struct ConvertTransferToTransaction {
         try await store.transactions.delete(droppedLeg.delete())
 
         // add transaction
-        let destinationID = destinationAccountID ?? keptLeg.accountID
-        let convertedTx = try Transaction(
+        let accountID = destinationAccountID ?? keptLeg.accountID
+        let transaction = try Transaction(
             id: keptLeg.id,
-            accountID: destinationID,
+            accountID: accountID,
             date: date.asYearMonthDay(),
             amount: amount,
             notes: notes
         )
-        guard var account = try await store.accounts.query(id: destinationID) else {
+        guard var account = try await store.accounts.query(id: accountID) else {
             throw AccountError.notFound
         }
         guard !account.isClosed else { throw AccountError.closed }
-        account += convertedTx
+        account += transaction
         try await store.accounts.save(account)
-        try await store.transactions.save(convertedTx)
+        try await store.transactions.save(transaction)
     }
 }

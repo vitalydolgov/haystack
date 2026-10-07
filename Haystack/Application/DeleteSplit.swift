@@ -13,53 +13,55 @@ struct DeleteSplit {
         }
 
         // load the account
-        guard var source = try await store.accounts.query(id: total.accountID) else {
+        guard var account = try await store.accounts.query(id: total.accountID) else {
             throw AccountError.notFound
         }
 
-        var others: [UUID: Account] = [:]
+        var counterparts: [UUID: Account] = [:]
         var deleted: [DeletedTransaction] = []
 
         // reverse the parts
         for part in parts {
             switch part.type {
             case .splitPart(_, .standard):
-                let deletedPart = DeleteTransaction.apply(account: &source, transaction: part, at: date)
+                let deletedPart = DeleteTransaction.apply(account: &account, transaction: part, at: date)
                 deleted.append(deletedPart)
             case .splitPart(_, .transfer(let transferID)):
-                guard let (fromLeg, toLeg) = try await store.transactions.queryTransfer(id: transferID) else {
+                guard let (leg, counterpartLeg) = try await store.transactions.queryTransfer(
+                    id: transferID,
+                    relativeTo: account.id
+                ) else {
                     throw TransferError.notFound
                 }
-                guard fromLeg.id == part.id || toLeg.id == part.id else {
+                guard leg.id == part.id else {
                     throw SplitError.malformed
                 }
-                let counterpart = fromLeg.id == part.id ? toLeg : fromLeg
-                var other: Account
-                if let cached = others[counterpart.accountID] {
-                    other = cached
-                } else if let loaded = try await store.accounts.query(id: counterpart.accountID) {
-                    other = loaded
+                var counterpartAccount: Account
+                if let cached = counterparts[counterpartLeg.accountID] {
+                    counterpartAccount = cached
+                } else if let loaded = try await store.accounts.query(id: counterpartLeg.accountID) {
+                    counterpartAccount = loaded
                 } else {
                     throw AccountError.notFound
                 }
-                let (deletedPart, deletedCounterpart) = DeleteTransfer.apply(
-                    account: &source,
-                    counterpartAccount: &other,
-                    transaction: part,
-                    counterpartTransaction: counterpart,
+                let (deletedLeg, deletedCounterpartLeg) = DeleteTransfer.apply(
+                    account: &account,
+                    counterpartAccount: &counterpartAccount,
+                    transaction: leg,
+                    counterpartTransaction: counterpartLeg,
                     at: date
                 )
-                others[other.id] = other
-                deleted.append(deletedPart)
-                deleted.append(deletedCounterpart)
+                counterparts[counterpartAccount.id] = counterpartAccount
+                deleted.append(deletedLeg)
+                deleted.append(deletedCounterpartLeg)
             case .standard, .transfer, .split, .splitPart:
                 throw SplitError.malformed
             }
         }
 
         // save the changes
-        try await store.accounts.save(source)
-        try await store.accounts.save(batch: Array(others.values))
+        try await store.accounts.save(account)
+        try await store.accounts.save(batch: Array(counterparts.values))
         try await store.transactions.delete(total.delete(at: date))
         try await store.transactions.delete(batch: deleted)
     }
