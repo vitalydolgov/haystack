@@ -160,8 +160,6 @@ struct EditTransactionSheet: View {
     private var canSavePlain: Bool {
         if isConversion {
             ConvertTransferToTransaction.canExecute(amount: amount)
-        } else if isMove {
-            MoveTransaction.canExecute(fromAccountID: initialSelectedAccountID, toAccountID: selectedAccountID)
         } else {
             EditTransaction.canExecute(amount: amount)
         }
@@ -222,11 +220,6 @@ struct EditTransactionSheet: View {
                 date: date,
                 amount: amount,
                 notes: notes
-            )
-        } else if isMove {
-            try await MoveTransaction(unitOfWork: unitOfWork).execute(
-                id: transactionID,
-                movingTo: selectedAccountID
             )
         } else {
             try await EditTransaction(unitOfWork: unitOfWork).execute(

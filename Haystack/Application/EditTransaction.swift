@@ -17,32 +17,42 @@ struct EditTransaction {
         amount: Decimal,
         notes: String = ""
     ) async throws {
-        // TODO: guard with canExecute
+        guard Self.canExecute(amount: amount) else {
+            throw ApplicationError.cannotExecute
+        }
         // TODO: check invariants before saving
-        guard amount != 0 else { throw TransactionError.invalidAmount }
         guard let currentTx = try await store.transactions.query(id: id),
-              case .standard = currentTx.type,
-              currentTx.accountID == accountID else {
+              case .standard = currentTx.type else {
             throw TransactionError.notFound
         }
-        guard var account = try await store.accounts.query(id: accountID) else {
+        guard var source = try await store.accounts.query(id: currentTx.accountID) else {
             throw AccountError.notFound
         }
-        guard !account.isClosed else { throw AccountError.closed }
-        var updatedTx = currentTx
-        try updatedTx.update(
-            date: Self.dateComponents(from: date),
-            amount: amount,
-            notes: notes
-        )
-        account -= currentTx
-        account += updatedTx
-        try await store.accounts.save(account)
-        try await store.transactions.save(updatedTx)
-    }
+        guard !source.isClosed else { throw AccountError.closed }
 
-    private static func dateComponents(from date: Date) -> (year: Int, month: Int, day: Int) {
-        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
-        return (year: c.year!, month: c.month!, day: c.day!)
+        let updatedTx = try Transaction(
+            id: currentTx.id,
+            accountID: accountID,
+            date: date.asYearMonthDay(),
+            amount: amount,
+            notes: notes,
+            type: currentTx.type
+        )
+
+        if currentTx.accountID == accountID {
+            source -= currentTx
+            source += updatedTx
+            try await store.accounts.save(source)
+        } else {
+            guard var target = try await store.accounts.query(id: accountID) else {
+                throw AccountError.notFound
+            }
+            guard !target.isClosed else { throw AccountError.closed }
+            source -= currentTx
+            target += updatedTx
+            try await store.accounts.save(source)
+            try await store.accounts.save(target)
+        }
+        try await store.transactions.save(updatedTx)
     }
 }
