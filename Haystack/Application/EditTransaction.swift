@@ -8,7 +8,51 @@ struct EditTransaction {
         amount != 0
     }
 
-    // TODO: refactor with apply method
+    static func apply(
+        _ transaction: Transaction,
+        account: inout Account,
+        date: Date,
+        amount: Decimal,
+        notes: String
+    ) throws -> Transaction {
+        guard account.id == transaction.accountID else { throw AccountError.notFound }
+        guard !account.isClosed else { throw AccountError.closed }
+        let updated = try Transaction(
+            id: transaction.id,
+            accountID: account.id,
+            date: date.asYearMonthDay(),
+            amount: amount,
+            notes: notes,
+            type: transaction.type
+        )
+        account -= transaction
+        account += updated
+        return updated
+    }
+
+    static func apply(
+        _ transaction: Transaction,
+        account: inout Account,
+        movingTo destination: inout Account,
+        date: Date,
+        amount: Decimal,
+        notes: String
+    ) throws -> Transaction {
+        guard account.id == transaction.accountID else { throw AccountError.notFound }
+        guard !account.isClosed, !destination.isClosed else { throw AccountError.closed }
+        let updated = try Transaction(
+            id: transaction.id,
+            accountID: destination.id,
+            date: date.asYearMonthDay(),
+            amount: amount,
+            notes: notes,
+            type: transaction.type
+        )
+        account -= transaction
+        destination += updated
+        return updated
+    }
+
     @Transactional
     func execute(
         id: UUID,
@@ -28,31 +72,31 @@ struct EditTransaction {
         guard var account = try await store.accounts.query(id: currentTx.accountID) else {
             throw AccountError.notFound
         }
-        guard !account.isClosed else { throw AccountError.closed }
 
-        let updatedTx = try Transaction(
-            id: currentTx.id,
-            accountID: accountID,
-            date: date.asYearMonthDay(),
-            amount: amount,
-            notes: notes,
-            type: currentTx.type
-        )
-
+        let updatedTx: Transaction
         if currentTx.accountID == accountID {
-            account -= currentTx
-            account += updatedTx
-            try await store.accounts.save(account)
+            updatedTx = try Self.apply(
+                currentTx,
+                account: &account,
+                date: date,
+                amount: amount,
+                notes: notes
+            )
         } else {
-            guard var movingToAccount = try await store.accounts.query(id: accountID) else {
+            guard var destination = try await store.accounts.query(id: accountID) else {
                 throw AccountError.notFound
             }
-            guard !movingToAccount.isClosed else { throw AccountError.closed }
-            account -= currentTx
-            movingToAccount += updatedTx
-            try await store.accounts.save(account)
-            try await store.accounts.save(movingToAccount)
+            updatedTx = try Self.apply(
+                currentTx,
+                account: &account,
+                movingTo: &destination,
+                date: date,
+                amount: amount,
+                notes: notes
+            )
+            try await store.accounts.save(destination)
         }
+        try await store.accounts.save(account)
         try await store.transactions.save(updatedTx)
     }
 }

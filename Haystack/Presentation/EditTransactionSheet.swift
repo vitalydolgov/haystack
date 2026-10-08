@@ -16,6 +16,7 @@ struct EditTransactionSheet: View {
     @State private var counterpartAccountID: UUID?
     @State private var splitParts: [SplitDraftPart] = []
 
+    @State private var initialType: TransactionType?
     @State private var initialSelectedAccountID = UUID()
     @State private var initialCounterpartAccountID: UUID?
 
@@ -69,6 +70,7 @@ struct EditTransactionSheet: View {
     }
 
     private func prefill() async {
+        guard initialType == nil else { return }
         guard let transaction = await transaction(id: transactionID) else { return }
         transactionKind = TransactionKind(of: transaction)
         if case .split(let splitID) = transaction.type {
@@ -78,6 +80,7 @@ struct EditTransactionSheet: View {
             notes = transaction.notes
             selectedAccountID = transaction.accountID
             counterpartAccountID = nil
+            initialType = transaction.type
             initialSelectedAccountID = selectedAccountID
             initialCounterpartAccountID = nil
             splitParts = parts.map(SplitDraftPart.from)
@@ -93,6 +96,7 @@ struct EditTransactionSheet: View {
                 selectedAccountID = counterpart.accountID
                 counterpartAccountID = transaction.accountID
             }
+            initialType = transaction.type
             initialSelectedAccountID = selectedAccountID
             initialCounterpartAccountID = counterpartAccountID
         } else {
@@ -101,6 +105,7 @@ struct EditTransactionSheet: View {
             notes = transaction.notes
             selectedAccountID = transaction.accountID
             counterpartAccountID = nil
+            initialType = transaction.type
             initialSelectedAccountID = selectedAccountID
             initialCounterpartAccountID = nil
         }
@@ -148,13 +153,26 @@ struct EditTransactionSheet: View {
     private var canSave: Bool {
         switch transactionKind {
         case .expense, .income:
-            canSavePlain
+            if case .split = initialType { false } else { canSavePlain }
         case .transfer:
-            canSaveTransfer
+            if case .split = initialType { false } else { canSaveTransfer }
         case .split:
-            // TODO: handle split
-            false
+            if case .split = initialType { canSaveSplit } else { false }
         }
+    }
+
+    private var canSaveSplit: Bool {
+        guard splitParts.allSatisfy(\.kind.isPlain) else { return false }
+        guard let split = try? SplitDraft(
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes,
+            parts: splitParts
+        ) else {
+            return false
+        }
+        return EditSplit.canExecute(amount: amount, parts: split.parts)
     }
 
     private var canSavePlain: Bool {
@@ -191,20 +209,45 @@ struct EditTransactionSheet: View {
 
     private func save() async {
         do {
-            // TODO: handle split
             switch transactionKind {
             case .expense, .income:
+                if case .split = initialType {
+                    throw PresentationError.cannotExecute
+                }
                 try await savePlain()
             case .transfer:
+                if case .split = initialType {
+                    throw PresentationError.cannotExecute
+                }
                 try await saveTransfer()
             case .split:
-                // TODO: handle split
-                throw PresentationError.cannotExecute
+                guard case .split = initialType else {
+                    throw PresentationError.cannotExecute
+                }
+                try await saveSplit()
             }
             dismiss()
         } catch {
             saveID = nil
         }
+    }
+
+    private func saveSplit() async throws {
+        let split = try SplitDraft(
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes,
+            parts: splitParts
+        )
+        try await EditSplit(unitOfWork: unitOfWork).execute(
+            id: transactionID,
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes,
+            parts: split.parts
+        )
     }
 
     private func savePlain() async throws {
