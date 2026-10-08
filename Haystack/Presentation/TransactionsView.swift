@@ -1,11 +1,32 @@
 import SwiftUI
 
+private struct TransactionRow: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let date: (year: Int, month: Int, day: Int)
+    let amount: Decimal
+    let type: TransactionType
+
+    init(_ transaction: Transaction) {
+        id = transaction.id
+        date = transaction.date
+        amount = transaction.amount
+        type = transaction.type
+    }
+
+    static func == (lhs: TransactionRow, rhs: TransactionRow) -> Bool {
+        lhs.id == rhs.id
+            && lhs.date == rhs.date
+            && lhs.amount == rhs.amount
+            && lhs.type == rhs.type
+    }
+}
+
 struct TransactionsView: View {
     let accountID: UUID
 
-    @State private var transactions: [Transaction] = []
+    @State private var transactions: [TransactionRow] = []
     @State private var accountName = ""
-    @State private var deletingTransaction: Transaction?
+    @State private var deletingTransaction: TransactionRow?
     @State private var deleteID: UUID?
 
     @Environment(Navigator.self) private var navigator
@@ -123,11 +144,11 @@ struct TransactionsView: View {
         }
     }
 
-    private func transactions() async -> [Transaction] {
+    private func transactions() async -> [TransactionRow] {
         do {
             return try await transactionRepository.query(.account(accountID)).filter { transaction in
                 if case .splitPart = transaction.type { false } else { true }
-            }
+            }.map(TransactionRow.init)
         } catch {
             print("error: \(error)")
             return []
@@ -152,7 +173,7 @@ struct TransactionsView: View {
         }
     }
 
-    private func dateText(_ transaction: Transaction) -> String {
+    private func dateText(_ transaction: TransactionRow) -> String {
         Transaction.date(from: transaction.date).formatted(date: .abbreviated, time: .omitted)
     }
 }
