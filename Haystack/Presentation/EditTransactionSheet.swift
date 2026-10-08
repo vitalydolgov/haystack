@@ -153,7 +153,7 @@ struct EditTransactionSheet: View {
     private var canSave: Bool {
         switch transactionKind {
         case .expense, .income:
-            if case .split = initialType { false } else { canSavePlain }
+            if case .split = initialType { canSaveSplit } else { canSavePlain }
         case .transfer:
             if case .split = initialType { false } else { canSaveTransfer }
         case .split:
@@ -212,9 +212,10 @@ struct EditTransactionSheet: View {
             switch transactionKind {
             case .expense, .income:
                 if case .split = initialType {
-                    throw PresentationError.cannotExecute
+                    try await saveSplit()
+                } else {
+                    try await savePlain()
                 }
-                try await savePlain()
             case .transfer:
                 if case .split = initialType {
                     throw PresentationError.cannotExecute
