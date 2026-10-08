@@ -179,6 +179,84 @@ struct EditSplitTests {
         #expect(try await accounts.query(id: destination.id)?.balance == 20)
     }
 
+    @Test func convertsSplitToStandardTransactionWhenEveryPartIsRemoved() async throws {
+        let (accounts, transactions, unitOfWork, account, total, grocery, tax) = try await makeSplit()
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+
+        try await EditSplit(unitOfWork: unitOfWork).execute(
+            id: total.id,
+            accountID: account.id,
+            date: date,
+            amount: 40,
+            notes: "Adjusted",
+            parts: []
+        )
+        let stored = try #require(await transactions.query(id: total.id))
+
+        #expect(stored.type == .standard)
+        #expect(stored.accountID == account.id)
+        #expect(stored.amount == 40)
+        #expect(stored.notes == "Adjusted")
+        #expect(stored.date == date.asYearMonthDay())
+        #expect(await transactions.query(id: grocery.id) == nil)
+        #expect(await transactions.query(id: tax.id) == nil)
+        #expect(await transactions.deleted(id: grocery.id) != nil)
+        #expect(await transactions.deleted(id: tax.id) != nil)
+        #expect(try await accounts.query(id: account.id)?.balance == 40)
+    }
+
+    @Test func convertsSplitToStandardTransactionWhenOnePartRemains() async throws {
+        let (accounts, transactions, unitOfWork, account, total, grocery, tax) = try await makeSplit()
+        let draftedGrocery = try Transaction.make(id: grocery.id, accountID: account.id, amount: 5)
+
+        try await EditSplit(unitOfWork: unitOfWork).execute(
+            id: total.id,
+            accountID: account.id,
+            date: .now,
+            amount: 25,
+            parts: [draftedGrocery]
+        )
+        let stored = try #require(await transactions.query(id: total.id))
+        let splitParts = await transactions.all().filter { transaction in
+            if case .splitPart = transaction.type { true } else { false }
+        }
+
+        #expect(stored.type == .standard)
+        #expect(stored.amount == 25)
+        #expect(await transactions.query(id: grocery.id) == nil)
+        #expect(await transactions.query(id: tax.id) == nil)
+        #expect(await transactions.deleted(id: grocery.id) != nil)
+        #expect(await transactions.deleted(id: tax.id) != nil)
+        #expect(splitParts.isEmpty)
+        #expect(try await accounts.query(id: account.id)?.balance == 25)
+    }
+
+    @Test func movesConvertedSplitOntoAnotherAccount() async throws {
+        let (accounts, transactions, unitOfWork, account, total, grocery, tax) = try await makeSplit()
+        let destination = try Account.make(name: "Savings", type: .savings)
+        await accounts.save(destination)
+        let amount: Decimal = 40
+
+        try await EditSplit(unitOfWork: unitOfWork).execute(
+            id: total.id,
+            accountID: destination.id,
+            date: .now,
+            amount: amount,
+            parts: []
+        )
+        let stored = try #require(await transactions.query(id: total.id))
+
+        #expect(stored.type == .standard)
+        #expect(stored.accountID == destination.id)
+        #expect(stored.amount == amount)
+        #expect(await transactions.query(id: grocery.id) == nil)
+        #expect(await transactions.query(id: tax.id) == nil)
+        #expect(await transactions.deleted(id: grocery.id) != nil)
+        #expect(await transactions.deleted(id: tax.id) != nil)
+        #expect(try await accounts.query(id: account.id)?.balance == 0)
+        #expect(try await accounts.query(id: destination.id)?.balance == amount)
+    }
+
     // MARK: Can execute
 
     @Test func failsWhenAmountIsZero() async throws {
@@ -193,28 +271,6 @@ struct EditSplitTests {
                 date: .now,
                 amount: 0,
                 parts: [draftedGrocery, draftedTax]
-            )
-        }
-        try await expectUnchanged(
-            accounts: accounts,
-            transactions: transactions,
-            account: account,
-            total: total,
-            grocery: grocery,
-            tax: tax
-        )
-    }
-
-    @Test func failsWhenPartsAreEmpty() async throws {
-        let (accounts, transactions, unitOfWork, account, total, grocery, tax) = try await makeSplit()
-
-        await #expect(throws: ApplicationError.cannotExecute) {
-            try await EditSplit(unitOfWork: unitOfWork).execute(
-                id: total.id,
-                accountID: account.id,
-                date: .now,
-                amount: 30,
-                parts: []
             )
         }
         try await expectUnchanged(
@@ -328,6 +384,70 @@ struct EditSplitTests {
         }
         let storedCard = try #require(await transactions.query(id: card.id))
         let storedIncoming = try #require(await transactions.query(id: incoming.id))
+        #expect(storedCard.amount == -20)
+        #expect(storedCard.accountID == parent.id)
+        #expect(storedCard.type == .splitPart(splitID, .transfer(transferID)))
+        #expect(storedIncoming.amount == 20)
+        #expect(storedIncoming.accountID == other.id)
+        #expect(storedIncoming.type == .transfer(transferID))
+        #expect(try await accounts.query(id: parent.id)?.balance == -30)
+        #expect(try await accounts.query(id: other.id)?.balance == 20)
+    }
+
+    @Test func failsWhenConvertedSplitContainsTransfer() async throws {
+        let accounts = InMemoryAccountRepository()
+        let transactions = InMemoryTransactionRepository()
+        let unitOfWork = InMemoryUnitOfWork(accounts: accounts, transactions: transactions)
+        let splitID = UUID()
+        let transferID = UUID()
+        let parent = try Account.make(balance: -30)
+        let other = try Account.make(name: "Bank", balance: 20)
+        await accounts.save(parent)
+        await accounts.save(other)
+        let total = try Transaction.make(
+            id: splitID,
+            accountID: parent.id,
+            amount: -30,
+            type: .split(splitID)
+        )
+        let cash = try Transaction.make(
+            accountID: parent.id,
+            amount: -10,
+            type: .splitPart(splitID, .standard)
+        )
+        let card = try Transaction.make(
+            accountID: parent.id,
+            amount: -20,
+            notes: "Card",
+            type: .splitPart(splitID, .transfer(transferID))
+        )
+        let incoming = try Transaction.make(
+            accountID: other.id,
+            amount: 20,
+            notes: "Card",
+            type: .transfer(transferID)
+        )
+        await transactions.save(total)
+        await transactions.save(cash)
+        await transactions.save(card)
+        await transactions.save(incoming)
+
+        await #expect(throws: SplitError.malformed) {
+            try await EditSplit(unitOfWork: unitOfWork).execute(
+                id: splitID,
+                accountID: parent.id,
+                date: .now,
+                amount: -30,
+                parts: []
+            )
+        }
+        let storedTotal = try #require(await transactions.query(id: splitID))
+        let storedCash = try #require(await transactions.query(id: cash.id))
+        let storedCard = try #require(await transactions.query(id: card.id))
+        let storedIncoming = try #require(await transactions.query(id: incoming.id))
+        #expect(storedTotal.type == .split(splitID))
+        #expect(storedCash.amount == -10)
+        #expect(storedCash.type == .splitPart(splitID, .standard))
         #expect(storedCard.amount == -20)
         #expect(storedCard.accountID == parent.id)
         #expect(storedCard.type == .splitPart(splitID, .transfer(transferID)))
