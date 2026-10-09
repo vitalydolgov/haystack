@@ -185,6 +185,29 @@ struct AddSplitTests {
         #expect(try await accounts.query(id: other.id)?.balance == -20)
     }
 
+    @Test func savesStandardTransactionWhenOnePartMatchesTotal() async throws {
+        let (accounts, transactions, unitOfWork, account) = try await openAccount()
+        let total = try Transaction.make(
+            accountID: account.id,
+            date: (year: 2026, month: 3, day: 2),
+            amount: 10,
+            notes: "Market"
+        )
+        let part = try Transaction.make(accountID: account.id, amount: 10)
+
+        let (saved, parts) = try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [part])
+        let stored = try #require(await transactions.query(id: saved.id))
+
+        #expect(saved.type == .standard)
+        #expect(saved.accountID == account.id)
+        #expect(saved.amount == 10)
+        #expect(saved.notes == "Market")
+        #expect(saved.date == (year: 2026, month: 3, day: 2))
+        #expect(parts.isEmpty)
+        #expect(stored.type == .standard)
+        #expect(try await accounts.query(id: account.id)?.balance == 10)
+    }
+
     // MARK: Can execute
 
     @Test func failsWhenTotalIsTransfer() async throws {
@@ -227,16 +250,12 @@ struct AddSplitTests {
         #expect(try await accounts.query(id: account.id)?.balance == 0)
     }
 
-    @Test(arguments: [0, 1])
-    func failsWhenPartCountIsBelowTwo(count: Int) async throws {
+    @Test func failsWhenPartsAreEmpty() async throws {
         let (accounts, transactions, unitOfWork, account) = try await openAccount()
         let total = try Transaction.make(accountID: account.id, amount: 10)
-        let parts = try (0..<count).map { _ in
-            try Transaction.make(accountID: account.id, amount: 10)
-        }
 
         await #expect(throws: ApplicationError.cannotExecute) {
-            try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
+            try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [])
         }
         #expect(await transactions.all().isEmpty)
         #expect(try await accounts.query(id: account.id)?.balance == 0)
@@ -319,6 +338,18 @@ struct AddSplitTests {
 
         await #expect(throws: ApplicationError.cannotExecute) {
             try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: parts)
+        }
+        #expect(await transactions.all().isEmpty)
+        #expect(try await accounts.query(id: account.id)?.balance == 0)
+    }
+
+    @Test func failsWhenOnePartAmountDiffers() async throws {
+        let (accounts, transactions, unitOfWork, account) = try await openAccount()
+        let total = try Transaction.make(accountID: account.id, amount: 10)
+        let part = try Transaction.make(accountID: account.id, amount: 4)
+
+        await #expect(throws: ApplicationError.cannotExecute) {
+            try await AddSplit(unitOfWork: unitOfWork).execute(total, parts: [part])
         }
         #expect(await transactions.all().isEmpty)
         #expect(try await accounts.query(id: account.id)?.balance == 0)
