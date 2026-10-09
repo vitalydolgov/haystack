@@ -5,6 +5,9 @@ struct EditSplit {
     let unitOfWork: UnitOfWork
 
     static func canExecute(amount: Decimal, parts: [Transaction]) -> Bool {
+        if parts.count < 2 {
+            return ReduceSplit.canExecute(amount: amount, parts: parts)
+        }
         guard amount != 0 else { return false }
         return parts.reduce(Decimal(0), { $0 + $1.amount }) == amount
     }
@@ -20,6 +23,18 @@ struct EditSplit {
     ) async throws {
         guard Self.canExecute(amount: amount, parts: parts) else {
             throw ApplicationError.cannotExecute
+        }
+
+        if parts.count < 2 {
+            try await ReduceSplit(unitOfWork: unitOfWork).execute(
+                id: id,
+                accountID: accountID,
+                date: date,
+                amount: amount,
+                notes: notes,
+                parts: parts
+            )
+            return
         }
 
         guard let (currentTotal, currentParts) = try await store.transactions.querySplit(id: id),
