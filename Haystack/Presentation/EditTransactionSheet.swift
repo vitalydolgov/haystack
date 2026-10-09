@@ -157,7 +157,13 @@ struct EditTransactionSheet: View {
         case .transfer:
             if case .split = initialType { false } else { canSaveTransfer }
         case .split:
-            if case .split = initialType { canSaveSplit } else { false }
+            if case .split = initialType {
+                canSaveSplit
+            } else if case .standard = initialType {
+                canConvertToSplit
+            } else {
+                false
+            }
         }
     }
 
@@ -173,6 +179,20 @@ struct EditTransactionSheet: View {
             return false
         }
         return EditSplit.canExecute(amount: amount, parts: split.parts)
+    }
+
+    private var canConvertToSplit: Bool {
+        guard splitParts.allSatisfy(\.kind.isPlain) else { return false }
+        guard let split = try? SplitDraft(
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes,
+            parts: splitParts
+        ) else {
+            return false
+        }
+        return ConvertTransactionToSplit.canExecute(amount: amount, parts: split.parts)
     }
 
     private var canSavePlain: Bool {
@@ -222,10 +242,13 @@ struct EditTransactionSheet: View {
                 }
                 try await saveTransfer()
             case .split:
-                guard case .split = initialType else {
+                if case .split = initialType {
+                    try await saveSplit()
+                } else if case .standard = initialType {
+                    try await convertToSplit()
+                } else {
                     throw PresentationError.cannotExecute
                 }
-                try await saveSplit()
             }
             dismiss()
         } catch {
@@ -242,6 +265,24 @@ struct EditTransactionSheet: View {
             parts: splitParts
         )
         try await EditSplit(unitOfWork: unitOfWork).execute(
+            id: transactionID,
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes,
+            parts: split.parts
+        )
+    }
+
+    private func convertToSplit() async throws {
+        let split = try SplitDraft(
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes,
+            parts: splitParts
+        )
+        try await ConvertTransactionToSplit(unitOfWork: unitOfWork).execute(
             id: transactionID,
             accountID: selectedAccountID,
             date: date,
