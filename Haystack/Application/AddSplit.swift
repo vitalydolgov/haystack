@@ -8,6 +8,9 @@ struct AddSplit {
         _ transaction: Transaction,
         parts: [Transaction]
     ) -> Bool {
+        if parts.count == 1 {
+            return parts[0].amount == transaction.amount
+        }
         do {
             try Split.validate(draft: transaction, parts: parts)
             return true
@@ -24,6 +27,16 @@ struct AddSplit {
     ) async throws -> (Transaction, [Transaction]) {
         guard Self.canExecute(transaction, parts: parts) else {
             throw ApplicationError.cannotExecute
+        }
+
+        if parts.count == 1 {
+            let saved = try await AddTransaction(unitOfWork: unitOfWork).execute(
+                accountID: transaction.accountID,
+                date: Transaction.date(from: transaction.date),
+                amount: transaction.amount,
+                notes: transaction.notes
+            )
+            return (saved, [])
         }
 
         // load the account
