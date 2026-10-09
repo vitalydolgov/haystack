@@ -67,6 +67,11 @@ struct SplitDraftEditor: View {
                 Section {
                     ForEach($parts) { $part in
                         PartRow(part: part, selectedPartID: $selectedPartID)
+                            .swipeActions(edge: .trailing) {
+                                Button("Delete", systemImage: "trash", role: .destructive) {
+                                    deletePart(id: part.id)
+                                }
+                            }
                             .contextMenu {
                                 ToggleFlowButton(kind: $part.kind)
                             }
@@ -97,6 +102,13 @@ struct SplitDraftEditor: View {
     }
 
     // MARK: Helpers
+
+    private func deletePart(id: UUID) {
+        guard let index = parts.firstIndex(where: { $0.id == id }) else { return }
+        parts.remove(at: index)
+        guard selectedPartID == id else { return }
+        selectedPartID = index < parts.count ? parts[index].id : parts.last?.id
+    }
 
     private func pushDigit(_ digit: Int) {
         guard let index = selectedIndex else { return }
