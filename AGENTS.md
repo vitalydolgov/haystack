@@ -81,3 +81,4 @@ Exceptions:
 - Conventional commit prefixes (feat, fix, test, refactor, perf, style, docs, build).
 - Subject-only: omit body and footer unless explaining a breaking change or complex rationale.
 - No period at the end of the subject.
+- Merge with `--no-ff` when the branch consists of several commits.
