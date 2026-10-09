@@ -138,10 +138,6 @@ struct EditTransactionSheet: View {
         }
     }
 
-    private var isConversion: Bool {
-        transferID == nil && transactionKind.isTransfer || transferID != nil && transactionKind.isPlain
-    }
-
     private var isMove: Bool {
         if transferID == nil {
             selectedAccountID != initialSelectedAccountID
@@ -149,25 +145,42 @@ struct EditTransactionSheet: View {
             selectedAccountID != initialSelectedAccountID || counterpartAccountID != initialCounterpartAccountID
         }
     }
+}
 
-    private var canSave: Bool {
-        switch transactionKind {
-        case .expense, .income:
-            if case .split = initialType { canSaveSplit } else { canSavePlain }
-        case .transfer:
-            if case .split = initialType { false } else { canSaveTransfer }
-        case .split:
-            if case .split = initialType {
-                canSaveSplit
-            } else if case .standard = initialType {
+private extension EditTransactionSheet {
+    var canSave: Bool {
+        switch initialType {
+        case .standard:
+            switch transactionKind {
+            case .expense, .income:
+                canSaveTransaction
+            case .transfer:
+                canConvertTransactionToTransfer
+            case .split:
                 canConvertToSplit
-            } else {
+            }
+        case .transfer:
+            switch transactionKind {
+            case .expense, .income:
+                canConvertTransferToTransaction
+            case .transfer:
+                canSaveTransfer
+            case .split:
                 false
             }
+        case .split:
+            switch transactionKind {
+            case .expense, .income, .split:
+                canSaveSplit
+            case .transfer:
+                false
+            }
+        case .splitPart, nil:
+            false
         }
     }
 
-    private var canSaveSplit: Bool {
+    var canSaveSplit: Bool {
         guard splitParts.allSatisfy(\.kind.isPlain) else { return false }
         guard let split = try? SplitDraft(
             accountID: selectedAccountID,
@@ -181,7 +194,7 @@ struct EditTransactionSheet: View {
         return EditSplit.canExecute(amount: amount, parts: split.parts)
     }
 
-    private var canConvertToSplit: Bool {
+    var canConvertToSplit: Bool {
         guard splitParts.allSatisfy(\.kind.isPlain) else { return false }
         guard let split = try? SplitDraft(
             accountID: selectedAccountID,
@@ -195,25 +208,25 @@ struct EditTransactionSheet: View {
         return ConvertTransactionToSplit.canExecute(amount: amount, parts: split.parts)
     }
 
-    private var canSavePlain: Bool {
-        if isConversion {
-            ConvertTransferToTransaction.canExecute(amount: amount)
-        } else {
-            EditTransaction.canExecute(amount: amount)
-        }
+    var canConvertTransferToTransaction: Bool {
+        ConvertTransferToTransaction.canExecute(amount: amount)
     }
 
-    private var canSaveTransfer: Bool {
-        if isConversion {
-            guard let counterpartAccountID else {
-                return false
-            }
-            return ConvertTransactionToTransfer.canExecute(
-                accountID: selectedAccountID,
-                counterpartAccountID: counterpartAccountID,
-                amount: amount
-            )
-        } else if isMove {
+    var canConvertTransactionToTransfer: Bool {
+        guard let counterpartAccountID else { return false }
+        return ConvertTransactionToTransfer.canExecute(
+            accountID: selectedAccountID,
+            counterpartAccountID: counterpartAccountID,
+            amount: amount
+        )
+    }
+
+    var canSaveTransaction: Bool {
+        EditTransaction.canExecute(amount: amount)
+    }
+
+    var canSaveTransfer: Bool {
+        if isMove {
             guard let counterpartAccountID else {
                 return false
             }
@@ -226,27 +239,44 @@ struct EditTransactionSheet: View {
             return EditTransfer.canExecute(amount: amount)
         }
     }
+}
 
-    private func save() async {
+private extension EditTransactionSheet {
+    func save() async {
         do {
-            switch transactionKind {
-            case .expense, .income:
-                if case .split = initialType {
-                    try await saveSplit()
-                } else {
+            switch initialType {
+            case .standard:
+                switch transactionKind {
+                case .expense, .income:
                     try await savePlain()
+                case .transfer:
+                    try await convertTransactionToTransfer()
+                case .split:
+                    try await convertToSplit()
                 }
             case .transfer:
-                if case .split = initialType {
+                switch transactionKind {
+                case .expense, .income:
+                    try await convertTransferToTransaction()
+                case .transfer:
+                    try await saveTransfer()
+                case .split:
                     throw PresentationError.cannotExecute
                 }
-                try await saveTransfer()
             case .split:
-                if case .split = initialType {
+                switch transactionKind {
+                case .expense, .income, .split:
                     try await saveSplit()
-                } else if case .standard = initialType {
-                    try await convertToSplit()
-                } else {
+                case .transfer:
+                    throw PresentationError.cannotExecute
+                }
+            case .splitPart, nil:
+                switch transactionKind {
+                case .expense, .income:
+                    try await savePlain()
+                case .transfer:
+                    try await saveTransfer()
+                case .split:
                     throw PresentationError.cannotExecute
                 }
             }
@@ -256,7 +286,7 @@ struct EditTransactionSheet: View {
         }
     }
 
-    private func saveSplit() async throws {
+    func saveSplit() async throws {
         let split = try SplitDraft(
             accountID: selectedAccountID,
             date: date,
@@ -274,7 +304,7 @@ struct EditTransactionSheet: View {
         )
     }
 
-    private func convertToSplit() async throws {
+    func convertToSplit() async throws {
         let split = try SplitDraft(
             accountID: selectedAccountID,
             date: date,
@@ -292,45 +322,47 @@ struct EditTransactionSheet: View {
         )
     }
 
-    private func savePlain() async throws {
-        if isConversion {
-            guard let transferID,
-                  let transaction = await transaction(id: transactionID) else {
-                throw PresentationError.cannotExecute
-            }
-            try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
-                transferID: transferID,
-                keeping: transaction.accountID,
-                movingTo: selectedAccountID,
-                date: date,
-                amount: amount,
-                notes: notes
-            )
-        } else {
-            try await EditTransaction(unitOfWork: unitOfWork).execute(
-                id: transactionID,
-                accountID: selectedAccountID,
-                date: date,
-                amount: amount,
-                notes: notes
-            )
+    func convertTransferToTransaction() async throws {
+        guard let transferID,
+              let transaction = await transaction(id: transactionID) else {
+            throw PresentationError.cannotExecute
         }
+        try await ConvertTransferToTransaction(unitOfWork: unitOfWork).execute(
+            transferID: transferID,
+            keeping: transaction.accountID,
+            movingTo: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes
+        )
     }
 
-    private func saveTransfer() async throws {
-        if isConversion {
-            guard let counterpartAccountID else {
-                throw PresentationError.cannotExecute
-            }
-            try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
-                id: transactionID,
-                accountID: selectedAccountID,
-                counterpartAccountID: counterpartAccountID,
-                date: date,
-                amount: amount,
-                notes: notes
-            )
-        } else if isMove {
+    func convertTransactionToTransfer() async throws {
+        guard let counterpartAccountID else {
+            throw PresentationError.cannotExecute
+        }
+        try await ConvertTransactionToTransfer(unitOfWork: unitOfWork).execute(
+            id: transactionID,
+            accountID: selectedAccountID,
+            counterpartAccountID: counterpartAccountID,
+            date: date,
+            amount: amount,
+            notes: notes
+        )
+    }
+
+    func savePlain() async throws {
+        try await EditTransaction(unitOfWork: unitOfWork).execute(
+            id: transactionID,
+            accountID: selectedAccountID,
+            date: date,
+            amount: amount,
+            notes: notes
+        )
+    }
+
+    func saveTransfer() async throws {
+        if isMove {
             guard let transferID, let counterpartAccountID else {
                 throw PresentationError.cannotExecute
             }
